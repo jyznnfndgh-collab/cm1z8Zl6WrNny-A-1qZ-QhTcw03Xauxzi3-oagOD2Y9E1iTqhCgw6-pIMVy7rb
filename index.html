@@ -988,7 +988,8 @@ const SCREENS = {
   diary:{title:'Дневник', render:renderDiary},
   calendar:{title:'Календарь', render:renderCalendar},
   stats:{title:'Статистика', render:renderStats},
-  profile:{title:'Профиль', render:renderProfile}
+  profile:{title:'Профиль', render:renderProfile},
+  onboarding:{title:'', render:() => renderOnboarding()}
 };
 
 function renderHome(){
@@ -1159,8 +1160,7 @@ async function entryForm(id, meal){
   const content = `
     <label class="field"><span>Приём пищи</span><select class="input" id="e-meal">
       ${MEALS.map(m => `<option value="${m.id}"${m.id === mealOf(e) ? ' selected' : ''}>${m.name}</option>`).join('')}</select></label>
-    ${button('Из моих продуктов', {kind:'soft', block:true, ic:'box', attrs:'id="e-pick" style="margin-bottom:8px"'})}
-    ${button('Из базы продуктов', {kind:'soft', block:true, ic:'search', attrs:'id="e-pick-db" style="margin-bottom:12px"'})}
+    ${button('Найти продукт', {kind:'soft', block:true, ic:'search', attrs:'id="e-pick" style="margin-bottom:12px"'})}
     ${field('Название', {id:'e-name', value:e.name, placeholder:'Например, овсяная каша'})}
     <div id="e-unit-box" style="margin-bottom:10px"></div>
     <div id="e-pcs-box" style="display:none">
@@ -1312,14 +1312,8 @@ async function entryForm(id, meal){
       };
 
       $id(ov, 'e-pick').addEventListener('click', async () => {
-        const pid = await pickFood();
-        const f = DB.foods.find(x => x.id === pid); if(!f) return;
-        applyPick(f.name, f.per100, f.units, f.defaultUnit, false);
-      });
-      $id(ov, 'e-pick-db').addEventListener('click', async () => {
-        const pid = await pickFoodFromDB();
-        if(!pid) return;
-        const f = FOODS_DB.find(x => x.id === pid); if(!f) return;
+        const pid = await pickFoodAny();
+        const f = pid && findFoodAny(pid); if(!f) return;
         applyPick(f.name, f.per100, f.units, f.defaultUnit, !!f._approx);
       });
     },
@@ -1430,16 +1424,85 @@ async function delFood(id){
   update(db => { db.foods = db.foods.filter(x => x.id !== id); });
   toast('Продукт удалён'); render(true);
 }
-function pickFood(){
+/* ---- единый поиск: мои продукты + база ---- */
+function searchAllFoods(query, category = 'all', limit = 40){
+  const q = _norm(query);
+  const words = q.split(' ').filter(Boolean);
+  const score = (name, syn, en) => {
+    let s = 0;
+    if(name.startsWith(q)) s += 100; else if(name.includes(q)) s += 60;
+    if(words.every(w => name.includes(w))) s += 20;
+    if(syn && syn.includes(q)) s += 40;
+    if(en && en.includes(q)) s += 25;
+    return s;
+  };
+  // мои продукты: всегда выше базы (бонус +1000)
+  let own = [];
+  if(category === 'all' || category === 'own'){
+    for(const f of DB.foods){
+      const name = _norm(f.name);
+      if(words.length && !words.every(w => name.includes(w))) continue;
+      own.push({f:{...f, _own:true}, s:1000 + (words.length ? score(name) : 0), name});
+    }
+    own.sort((x, y) => y.s - x.s || x.f.name.localeCompare(y.f.name, 'ru'));
+  }
+  const ownNames = new Set(own.map(x => x.name));
+  let base = [];
+  if(category !== 'own'){
+    const pool = category === 'all' ? FOODS_INDEXED : FOODS_INDEXED.filter(f => f._cat === category);
+    for(const f of pool){
+      const name = _norm(f.name);
+      if(ownNames.has(name)) continue; // дубликат моего продукта
+      if(words.length && !words.every(w => f._hay.includes(w))) continue;
+      base.push({f, s: words.length ? score(name, _norm(f._syn), _norm(f._en)) : 0});
+    }
+    if(words.length) base.sort((x, y) => y.s - x.s || x.f.name.localeCompare(y.f.name, 'ru'));
+  }
+  // мои в лимит не урезаются раньше базовых
+  const room = Math.max(limit - own.length, 20);
+  return own.map(x => x.f).concat(base.slice(0, room).map(x => x.f));
+}
+function findFoodAny(id){
+  return DB.foods.find(x => x.id === id) || FOODS_DB.find(x => x.id === id) || null;
+}
+function pickFoodAny(){
   return openModal({
-    title:'Мои продукты', message:'Значения указаны на 100 г',
-    content:`<label class="search">${icon('search')}<input class="input" id="pk-q" placeholder="Поиск по названию" autocomplete="off"></label>
-      <div id="pk-list">${foodListHTML('', true)}</div>`,
+    title:'Найти продукт', message:'Значения указаны на 100 г',
+    content:`<label class="search">${icon('search')}<input class="input" id="fa-q" placeholder="Мои продукты и база: рис, курица, тофу…" autocomplete="off"></label>
+      <div class="chips" id="fa-cats" style="margin-bottom:10px">
+        <button class="chip last" data-cat="all">Все</button>
+        <button class="chip" data-cat="own">Мои</button>
+        ${FOOD_CATEGORIES.map(c => `<button class="chip" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
+      </div>
+      ${FOODS_DB.length ? '' : '<div class="note" style="margin-bottom:8px">База не загружена: ищу только по моим продуктам. Загрузить JSON можно в «Профиль → База продуктов».</div>'}
+      <div id="fa-list" style="max-height:52vh;overflow:auto"></div>`,
     onOpen: ov => {
-      const refresh = () => { $id(ov, 'pk-list').innerHTML = foodListHTML($id(ov, 'pk-q').value, true); };
-      $id(ov, 'pk-q').addEventListener('input', refresh);
-      ov.addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if(b) ov._close(b.dataset.pick); });
+      let activeCat = 'all', timer = null;
+      const paintCats = () => ov.querySelectorAll('#fa-cats [data-cat]').forEach(b =>
+        b.classList.toggle('last', b.dataset.cat === activeCat));
+      const refresh = () => {
+        const list = searchAllFoods(ov.querySelector('#fa-q').value, activeCat);
+        const box = ov.querySelector('#fa-list');
+        if(!list.length){ box.innerHTML = '<div class="note">Ничего не найдено.</div>'; return; }
+        box.innerHTML = list.map(f => `
+          <button class="frow" data-pick="${f.id}">
+            <div class="nm">${esc(f.name)}</div>
+            <div class="sub">
+              ${f._own ? '<span style="color:var(--a);font-weight:600">Моё</span>' : (f._cat ? `<span>${esc(f._cat)}</span>` : '')}
+              <span>${eV(f.per100.kcal, U('energy').dp)} ${eU()} / 100 г</span>
+              <span>Б ${fmt(f.per100.p)}</span><span>Ж ${fmt(f.per100.f)}</span><span>У ${fmt(f.per100.c)}</span>
+              ${f.units && f.units.length ? `<span>${esc(f.units[0].label)} ≈ ${fmt(f.units[0].grams)} г${f._approx ? ' (примерно)' : ''}</span>` : ''}
+            </div>
+          </button>`).join('');
+      };
+      ov.querySelector('#fa-q').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refresh, 120); });
+      ov.querySelector('#fa-cats').addEventListener('click', e => {
+        const b = e.target.closest('[data-cat]'); if(!b) return;
+        activeCat = b.dataset.cat; paintCats(); refresh();
+      });
+      ov.addEventListener('click', e => { const p = e.target.closest('[data-pick]'); if(p) ov._close(p.dataset.pick); });
       ov._refresh = refresh;
+      paintCats(); refresh();
     },
     buttons:[
       {text:'Новый продукт', kind:'soft', value:null, onClick: async ov => {
@@ -1448,65 +1511,8 @@ function pickFood(){
     ]
   });
 }
-
-function pickFoodFromDB(){
-  if(!FOODS_DB.length){
-    return openModal({
-      title:'База не загружена',
-      message:'Откройте «Профиль» → «База продуктов» и загрузите JSON-файл.',
-      buttons:[{text:'Понятно', kind:'ghost', value:null}]
-    });
-  }
-  return openModal({
-    title:'База продуктов',
-    message:'Значения указаны на 100 г',
-    content:`
-      <label class="search">${icon('search')}
-        <input class="input" id="db-q" placeholder="рис, курица, тофу…" autocomplete="off">
-      </label>
-      <div class="chips" id="db-cats" style="margin-bottom:10px">
-        <button class="chip last" data-cat="all">Все</button>
-        ${FOOD_CATEGORIES.map(c => `<button class="chip" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
-      </div>
-      <div id="db-list" style="max-height:52vh;overflow:auto"></div>`,
-    onOpen: ov => {
-      let activeCat = 'all';
-      const paintCats = () => {
-        ov.querySelectorAll('#db-cats [data-cat]').forEach(b =>
-          b.classList.toggle('last', b.dataset.cat === activeCat));
-      };
-      const refresh = () => {
-        const q = ov.querySelector('#db-q').value;
-        const list = searchFoodsDB(q, { category: activeCat });
-        const box = ov.querySelector('#db-list');
-        if(!list.length){ box.innerHTML = '<div class="note">Ничего не найдено.</div>'; return; }
-        box.innerHTML = list.map(f => `
-          <button class="frow" data-pick="${f.id}">
-            <div class="nm">${esc(f.name)}</div>
-            <div class="sub">
-              ${f._cat ? `<span>${esc(f._cat)}</span>` : ''}
-              <span>${eV(f.per100.kcal, U('energy').dp)} ${eU()} / 100 г</span>
-              <span>Б ${fmt(f.per100.p)}</span>
-              <span>Ж ${fmt(f.per100.f)}</span>
-              <span>У ${fmt(f.per100.c)}</span>
-              ${f.units && f.units.length ? `<span>${esc(f.units[0].label)} ≈ ${fmt(f.units[0].grams)} г${f._approx ? ' (примерно)' : ''}</span>` : ''}
-            </div>
-          </button>`).join('');
-      };
-      ov.querySelector('#db-q').addEventListener('input', refresh);
-      ov.querySelector('#db-cats').addEventListener('click', e => {
-        const b = e.target.closest('[data-cat]'); if(!b) return;
-        activeCat = b.dataset.cat; paintCats(); refresh();
-      });
-      ov.addEventListener('click', e => {
-        const p = e.target.closest('[data-pick]');
-        if(p) ov._close(p.dataset.pick);
-      });
-      paintCats(); refresh();
-    },
-    buttons:[{text:'Закрыть', kind:'ghost', value:null}]
-  });
-}
+// обёртки для совместимости
+const pickFood = pickFoodAny, pickFoodFromDB = pickFoodAny;
 
 function computeFrequentFoods(limit = 12){
   const since = shiftKey(dateKey(), -60);
@@ -1636,26 +1642,16 @@ function scenarioForm(editId){
         const choice = await openModal({
           title:'Откуда взять продукт?',
           buttons:[
-            {text:'Мои продукты', kind:'soft', value:'own'},
-            {text:'База', kind:'soft', value:'db'},
+            {text:'Найти продукт', kind:'soft', value:'find'},
             {text:'Вручную', kind:'ghost', value:'man'},
             {text:'Отмена', kind:'ghost', value:false}
           ]
         });
         if(!choice) return;
         let it = null;
-        if(choice === 'own'){
-          const pid = await pickFood();
-          const f = DB.foods.find(x => x.id === pid); if(!f) return;
-          const g = f.units && f.units.length ? f.units[0].grams : 100;
-          const label = f.units && f.units.length ? f.units[0].label : 'г';
-          const qty = f.units && f.units.length ? 1 : 100;
-          const kcal = f.per100.kcal * g / 100;
-          it = {foodId:f.id, name:f.name, qty, unit:label, grams:g,
-            kcal:r1(kcal), p:r1(f.per100.p*g/100), f:r1(f.per100.f*g/100), c:r1(f.per100.c*g/100)};
-        } else if(choice === 'db'){
-          const pid = await pickFoodFromDB(); if(!pid) return;
-          const f = FOODS_DB.find(x => x.id === pid); if(!f) return;
+        if(choice === 'find'){
+          const pid = await pickFoodAny(); if(!pid) return;
+          const f = findFoodAny(pid); if(!f) return;
           const g = f.units && f.units.length ? f.units[0].grams : 100;
           const label = f.units && f.units.length ? f.units[0].label : 'г';
           const qty = f.units && f.units.length ? 1 : 100;
@@ -2137,6 +2133,17 @@ function renderProfile(){
       ${button('Очистить', {kind:'danger', attrs:'data-act="db-clear"'})}
     </div>
     <input type="file" id="db-file" accept="application/json,.json" style="display:none">
+  </div>
+  <div class="card">
+    <h2 class="card-title">Данные</h2>
+    <p class="muted" style="margin:0 0 10px">Резервная копия: профиль, записи, свои продукты и сценарии. Библиотека продуктов (JSON) в копию не входит.</p>
+    <div class="inl">
+      ${button('Экспорт', {kind:'soft', attrs:'data-act="data-export"'})}
+      ${button('Импорт', {kind:'soft', ic:'upload', attrs:'data-act="data-import"'})}
+    </div>
+    <div style="margin-top:14px">${button('Сбросить все данные', {kind:'danger', block:true, attrs:'data-act="data-reset"'})}</div>
+    <div style="margin-top:8px">${button('Полная очистка (с базой продуктов)', {kind:'danger', block:true, attrs:'data-act="data-wipe"'})}</div>
+    <p class="muted" style="margin:10px 0 0">Сброс стирает профиль, дневник, воду, шаги, вес, свои продукты и сценарии. Полная очистка дополнительно удаляет загруженную базу продуктов.</p>
   </div>`;
 }
 function profileToggle(){
@@ -2263,6 +2270,225 @@ async function resetAll(){
   DB = emptyData(); saveData(); toast('Все данные сброшены'); render(true);
 }
 
+async function wipeAll(){
+  if(!await confirmDialog('Удалить абсолютно всё, включая загруженную базу продуктов? Это необратимо.', {title:'Полная очистка', ok:'Стереть всё'})) return;
+  DB = emptyData(); saveData();
+  try{ await clearFoodsDB(); }catch(e){}
+  toast('Всё очищено'); render(true);
+}
+
+/* ============ ОНБОРДИНГ ============ */
+let onb = null;
+function onbStart(){
+  onb = {step:1, name:DB.profile.name || '', age:'', sex:'', height:'', weight:'', activity:null, type:'maintain',
+    targetKg:'', months:6, calc:null, manual:false};
+  if(DB.profile.onboardingDone){
+    onb.age = DB.profile.age ?? '';
+    onb.sex = DB.profile.sex || '';
+    onb.height = DB.profile.heightCm ?? '';
+    onb.weight = DB.profile.weightKg ?? '';
+    onb.activity = DB.profile.activity;
+    onb.type = DB.goal.type || 'maintain';
+    onb.targetKg = DB.goal.targetKg ?? '';
+    if(DB.goal.targetDate) onb.months = Math.max(1, Math.min(12, Math.round(weeksBetween(dateKey(), DB.goal.targetDate) / 4.345)));
+  }
+  go('onboarding');
+}
+function onbExit(msg){
+  onb = null; screenHistory = []; currentScreen = 'home'; render();
+  if(msg) toast(msg);
+}
+function renderOnboarding(){
+  const o = onb; if(!o) return '';
+  const st = o.step, ind = n => `<div class="steps">${[1,2,3,4,5].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</div>`;
+  const nav = (back = true, next = true, nextLabel = 'Далее') => `<div class="grid2" style="margin-top:16px">
+      ${back ? button('Назад', {kind:'ghost', attrs:'data-act="onb-back"'}) : '<span></span>'}
+      ${next ? button(nextLabel, {kind:'primary', attrs:'data-act="onb-next"'}) : '<span></span>'}</div>`;
+  if(st === 1){
+    return ind(1) + `<h2 class="card-title" style="font-size:24px;margin-bottom:8px">Добро пожаловать</h2>
+      <p class="muted">Данные хранятся только на этом устройстве. Ничего не отправляется в интернет.</p>
+      ${field('Имя (необязательно)', {id:'o-name', value:o.name, placeholder:'Как к вам обращаться'})}
+      <div class="grid2" style="margin-top:16px">${button('Закрыть', {kind:'ghost', attrs:'data-act="onb-cancel"'})}${button('Далее', {kind:'primary', attrs:'data-act="onb-next"'})}</div>`;
+  }
+  if(st === 2){
+    const err = o.err2 ? `<div class="err">${o.err2}</div>` : '';
+    return ind(2) + `<h2 class="card-title" style="font-size:20px">Основные данные</h2>
+      <p class="muted" style="margin:0 0 12px">Возраст, пол, рост и вес нужны для расчёта ориентиров.</p>
+      <div class="grid2">${field('Возраст, лет', {id:'o-age', value:o.age, mode:'numeric', placeholder:'25'})}
+      ${field('Рост, см', {id:'o-height', value:o.height, mode:'numeric', placeholder:'175'})}
+      ${field('Вес, кг', {id:'o-weight', value:o.weight, mode:'decimal', placeholder:'65'})}</div>
+      <div class="sub-h">Пол</div><div class="sex">
+        <button class="${o.sex === 'm' ? 'on' : ''}" data-act="onb-sex" data-v="m">Мужской</button>
+        <button class="${o.sex === 'f' ? 'on' : ''}" data-act="onb-sex" data-v="f">Женский</button>
+        <button class="${o.sex === '' ? 'on' : ''}" data-act="onb-sex" data-v="">Не указывать</button></div>${err}
+      ${nav(true, true, 'Далее')}
+      <div style="margin-top:10px">${button('Пропустить и ввести цели вручную', {kind:'ghost', block:true, attrs:'data-act="onb-skip"'})}</div>`;
+  }
+  if(st === 3){
+    return ind(3) + `<h2 class="card-title" style="font-size:20px">Уровень активности</h2>
+      <p class="muted" style="margin:0 0 8px">Выберите, что лучше всего описывает ваш день.</p>
+      <div class="act">${ACTIVITIES.map(a => `<button class="${o.activity === a.v ? 'on' : ''}" data-act="onb-act" data-v="${a.v}">
+        <div class="r"><b>${a.name}</b><span>${a.note}</span></div><span class="k">×${String(a.v).replace('.', ',')}</span></button>`).join('')}</div>
+      ${nav(true, true, 'Далее')}`;
+  }
+  if(st === 4){
+    const needTarget = o.type !== 'maintain';
+    const dis = '';
+    return ind(4) + `<h2 class="card-title" style="font-size:20px">Цель</h2>
+      <div class="act" style="margin-bottom:12px">
+        <button class="${o.type === 'lose' ? 'on' : ''}" data-act="onb-type" data-v="lose"><div class="r"><b>Снизить вес</b></div></button>
+        <button class="${o.type === 'gain' ? 'on' : ''}" data-act="onb-type" data-v="gain"><div class="r"><b>Набрать вес</b></div></button>
+        <button class="${o.type === 'maintain' ? 'on' : ''}" data-act="onb-type" data-v="maintain"><div class="r"><b>Поддерживать</b></div></button>
+      </div>
+      ${needTarget ? `<div class="grid2">${field('Целевой вес, кг', {id:'o-tkg', value:o.targetKg, mode:'decimal', placeholder:'70'})}
+        ${field('Срок, месяцев (1–12)', {id:'o-months', value:String(o.months), mode:'numeric', placeholder:'6'})}</div>` : ''}
+      <div class="grid2" style="margin-top:16px">
+        <button class="btn ghost" data-act="onb-back">Назад</button>
+        <button class="btn primary" data-act="onb-next" ${dis}>Далее</button></div>`;
+  }
+  if(st === 5){
+    if(!o.calc) return '';
+    const c = o.calc;
+    const rows = [['Калории', eV(c.kcal), eU()], ['Белки', c.protein, 'г'], ['Жиры', c.fat, 'г'], ['Углеводы', c.carb, 'г'],
+      ['Вода', wV(c.water), wU()], ['Шаги', n0(c.steps), 'шагов']];
+    const flds = [['kcal','Калории, ' + eU(), gIn(GOALS[0], c.kcal)], ['protein','Белки, г', c.protein],
+      ['fat','Жиры, г', c.fat], ['carb','Углеводы, г', c.carb], ['waterGoal','Вода, ' + wU(), dec(c.water * U('water').f, U('water').d)],
+      ['stepsGoal','Шаги', c.steps]];
+    const warn = c.warnings.map(w => `<div class="warn">${w}</div>`).join('');
+    const notes = c.notes.map(w => `<div class="info">${w}</div>`).join('');
+    return ind(5) + `<h2 class="card-title" style="font-size:20px">Ваш ориентир</h2>
+      ${warn}${notes}
+      ${o.manual
+        ? `<div class="card" style="background:rgba(0,0,0,0.3);border-color:var(--glass-border)"><p class="muted" style="margin:0 0 10px">Все значения можно изменить.</p>
+           ${flds.map(([id, label, val]) => field(label, {id:'m-' + id, value:String(val), mode:'decimal'})).join('')}</div>`
+        : `<div class="tgt">${rows.map(([a, b, u]) => `<div class="row2"><span>${a}</span><b>${b} ${u}</b></div>`).join('')}</div>
+           <p class="muted" style="margin:4px 0 10px">Ориентир, не предписание. Его можно изменить в любой момент.</p>
+           <div class="info">${o.type !== 'maintain' && c.actualRate !== 0
+             ? `Темп ≈ ${dec(Math.abs(c.actualRate), 2)} кг в неделю, цель примерно к ${formatDateRu(c.targetDateReal || c.targetDate)}.`
+             : (c.bmrAvg ? 'Расчёт усреднён, потому что пол не указан.' : 'Поддержание текущего веса.')}</div>
+           <details class="how2"><summary>Как это посчитано</summary>
+             <div class="kv"><span>BMR (основной обмен)</span><b>${Math.round(c.bmr)} ккал</b></div>
+             <div class="kv"><span>TDEE (с активностью)</span><b>${Math.round(c.tdee)} ккал</b></div>
+             <div class="kv"><span>${o.type === 'lose' ? 'Дефицит' : o.type === 'gain' ? 'Добавка' : 'Без изменений'}</span><b>${o.type === 'maintain' ? '0' : (c.deficit > 0 ? '+' : '') + Math.round(c.deficit) + ' ккал'}</b></div>
+             <div class="kv"><span>Цель по калориям</span><b>${Math.round(c.kcal)} ккал</b></div>
+             <div class="kv"><span>Вода</span><b>${Math.round(c.water)} мл</b></div>
+           </details>`}
+      <div style="margin-top:14px">
+        ${o.manual
+          ? `<div class="grid2">${button('Назад', {kind:'ghost', attrs:'data-act="onb-back"'})}${button('Сохранить', {kind:'primary', attrs:'data-act="onb-save-manual"'})}</div>`
+          : `<div class="grid2">${button('Править вручную', {kind:'ghost', attrs:'data-act="onb-manual"'})}${button('Принять', {kind:'primary', attrs:'data-act="onb-accept"'})}</div>
+             <div style="margin-top:10px">${button('Назад', {kind:'ghost', block:true, attrs:'data-act="onb-back"'})}</div>`}
+      </div>`;
+  }
+  return '';
+}
+function onbCollect(){
+  const o = onb, g = id => { const el = document.getElementById(id); return el ? el.value : null; };
+  if(o.step === 1 && g('o-name') != null) o.name = g('o-name');
+  if(o.step === 2){ o.age = g('o-age'); o.height = g('o-height'); o.weight = g('o-weight'); }
+  if(o.step === 4){ o.targetKg = g('o-tkg') ?? o.targetKg; const m = g('o-months'); if(m != null) o.months = Math.max(1, Math.min(12, Math.round(num(m)) || 1)); }
+  if(o.step === 5 && o.manual){
+    o.manualVals = {
+      kcal: gBase(GOALS[0], num(g('m-kcal'))), protein: num(g('m-protein')), fat: num(g('m-fat')), carb: num(g('m-carb')),
+      waterGoal: gBase(GOALS[4], num(g('m-waterGoal'))), stepsGoal: Math.round(num(g('m-stepsGoal'))) || 8000
+    };
+  }
+}
+function onbNext(){
+  const o = onb; onbCollect();
+  if(o.step === 1){
+    o.name = (o.name || '').trim();
+    o.step = 2; render();
+    return;
+  }
+  if(o.step === 2){
+    const age = Math.round(num(o.age)), height = Math.round(num(o.height)), weight = num(o.weight);
+    if(!(age >= 14 && age <= 100)) return onbErr('Возраст должен быть от 14 до 100 лет');
+    if(!(height >= 120 && height <= 230)) return onbErr('Рост должен быть от 120 до 230 см');
+    if(!(weight >= 30 && weight <= 250)) return onbErr('Вес должен быть от 30 до 250 кг');
+    o.age = age; o.height = height; o.weight = weight; o.err2 = ''; o.step = 3; render();
+    return;
+  }
+  if(o.step === 3){
+    if(!o.activity){ toast('Выберите уровень активности'); return; }
+    o.step = 4; render(); return;
+  }
+  if(o.step === 4){
+    if(o.type !== 'maintain'){
+      const tkg = num(o.targetKg);
+      if(!(tkg > 0)){ toast('Введите целевой вес'); return; }
+      if(!(o.months >= 1 && o.months <= 12)){ toast('Срок от 1 до 12 месяцев'); return; }
+      o.targetKg = tkg;
+    }
+    const p = {weightKg:o.weight, heightCm:o.height, age:o.age, sex:o.sex, activity:o.activity};
+    const targetDate = dateFrom(o.months * 4.345);
+    const g = {type:o.type, targetKg:o.type === 'maintain' ? o.weight : o.targetKg, targetDate:o.type === 'maintain' ? '' : targetDate};
+    o.calc = calcTargets(p, g, dateKey());
+    o.manual = false;
+    o.step = 5; render(); return;
+  }
+}
+function onbErr(msg){
+  onb.err2 = msg;
+  render();
+}
+function onbSkip(){
+  update(db => {
+    db.profile.name = (onb.name || '').trim();
+    db.profile.onboardingDone = true;
+  });
+  onb = null; screenHistory = ['home']; currentScreen = 'profile'; render(); toast('Профиль создан. Введите цели вручную.');
+}
+function onbAccept(){
+  const o = onb, c = o.calc;
+  update(db => {
+    db.profile.name = (o.name || '').trim();
+    db.profile.age = o.age; db.profile.sex = o.sex; db.profile.heightCm = o.height; db.profile.weightKg = o.weight;
+    db.profile.activity = o.activity; db.profile.onboardingDone = true;
+    db.profile.calcKg = o.weight; db.profile.calcDate = dateKey();
+    const targetDate = c.targetDateReal || c.targetDate || dateFrom(o.months * 4.345);
+    db.goal = {type:o.type, startKg:o.weight, startDate:dateKey(),
+      targetKg:o.type === 'maintain' ? o.weight : o.targetKg, targetDate:o.type === 'maintain' ? '' : targetDate};
+    db.targets = {kcal:c.kcal, protein:c.protein, fat:c.fat, carb:c.carb, waterGoal:c.water, stepsGoal:c.steps,
+      source:'auto', calcDate:dateKey()};
+    if(o.weight > 0) db.weights[dateKey()] = o.weight;
+  });
+  onbExit('Ориентиры сохранены');
+}
+function onbSaveManual(){
+  const o = onb; onbCollect();
+  const v = o.manualVals;
+  if(!(v.kcal >= 500 && v.kcal <= 10000)){ toast('Калории: от 500 до 10000'); return; }
+  if(!(v.waterGoal >= 500 && v.waterGoal <= 10000)){ toast('Вода: от 500 до 10000 мл'); return; }
+  update(db => {
+    db.profile.name = (o.name || '').trim();
+    if(o.age && o.height && o.weight){ db.profile.age = o.age; db.profile.sex = o.sex; db.profile.heightCm = o.height; db.profile.weightKg = o.weight; db.profile.activity = o.activity; }
+    db.profile.onboardingDone = true;
+    db.profile.calcKg = o.weight || db.profile.weightKg; db.profile.calcDate = dateKey();
+    if(o.weight) { db.weights[dateKey()] = o.weight; }
+    const td = o.months ? dateFrom(o.months * 4.345) : '';
+    db.goal = {type:o.type, startKg:o.weight, startDate:dateKey(), targetKg:o.type === 'maintain' ? (o.weight || db.profile.weightKg) : o.targetKg,
+      targetDate:o.type === 'maintain' ? '' : td};
+    db.targets = {kcal:v.kcal, protein:v.protein, fat:v.fat, carb:v.carb, waterGoal:v.waterGoal, stepsGoal:v.stepsGoal,
+      source:'manual', calcDate:dateKey()};
+  });
+  onbExit('Ваши значения сохранены');
+}
+
+/* Состояние кнопки «Далее» на шаге «Цель»: обновляется сразу при выборе цели и при вводе */
+function onbSync(){
+  if(!onb || onb.step !== 4) return;
+  const btn = APP.querySelector('[data-act="onb-next"]'); if(!btn) return;
+  const need = onb.type !== 'maintain';
+  const t = document.getElementById('o-tkg'), m = document.getElementById('o-months');
+  const tkg = t ? num(t.value) : num(onb.targetKg), months = m ? Math.round(num(m.value)) : onb.months;
+  const ok = !need || (tkg > 0 && months >= 1 && months <= 12);
+  btn.disabled = !ok;
+}
+document.addEventListener('input', e => {
+  if(currentScreen === 'onboarding' && (e.target.id === 'o-tkg' || e.target.id === 'o-months')) onbSync();
+});
+
 /* ============ РОУТЕР ============ */
 let currentScreen = 'home';
 let screenHistory = [];
@@ -2276,6 +2502,7 @@ function render(soft = false){
     if(!soft) window.scrollTo(0, 0);
     animateRings(APP);
     if(currentScreen === 'profile') profileToggle();
+    if(currentScreen === 'onboarding') onbSync();
     if(currentScreen === 'foods'){
       const q = document.getElementById('food-q');
       if(q) q.addEventListener('input', () => {
@@ -2403,7 +2630,27 @@ document.addEventListener('click', e => {
     const add = document.querySelector('[data-act="add"]');
     if(add) add.scrollIntoView({behavior:'smooth', block:'center'});
   } else if(act === 'onboard'){
-    go('profile');
+    onbStart();
+  } else if(act === 'onb-sex'){
+    onbCollect(); onb.sex = actEl.dataset.v; render(true);
+  } else if(act === 'onb-act'){
+    onbCollect(); onb.activity = +actEl.dataset.v; render(true);
+  } else if(act === 'onb-type'){
+    onbCollect(); onb.type = actEl.dataset.v; render(true);
+  } else if(act === 'onb-next'){
+    onbNext();
+  } else if(act === 'onb-back'){
+    onbCollect(); if(onb.step > 1){ onb.step--; if(onb.step === 5) onb.step = 4; } render();
+  } else if(act === 'onb-skip'){
+    onbSkip();
+  } else if(act === 'onb-accept'){
+    onbAccept();
+  } else if(act === 'onb-manual'){
+    onbCollect(); onb.manual = true; render(true);
+  } else if(act === 'onb-save-manual'){
+    onbSaveManual();
+  } else if(act === 'onb-cancel'){
+    onbExit();
   } else if(act === 'open-day'){
     viewDate = actEl.dataset.date; currentScreen = 'diary'; render();
   } else if(act === 'db-import'){
@@ -2412,6 +2659,14 @@ document.addEventListener('click', e => {
     (async () => { if(await confirmDialog('Очистить базу продуктов?', {title:'Очистка базы'})){ await clearFoodsDB(); render(true); } })();
   } else if(act === 'go-profile'){
     go('profile');
+  } else if(act === 'data-export'){
+    exportData();
+  } else if(act === 'data-import'){
+    importData();
+  } else if(act === 'data-reset'){
+    resetAll();
+  } else if(act === 'data-wipe'){
+    wipeAll();
   }
 });
 
