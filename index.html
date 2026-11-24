@@ -532,6 +532,20 @@ function workoutBurnForDate(dateStr){
   const wk = DB.workouts[weekMondayKey(dateStr)] || [];
   return sum(wk, w => (w && w.done && w.date === dateStr) ? w.kcal : 0);
 }
+/* Калории за шаги: длина шага = рост × 0,415 / 100 (м); расстояние (км) = шаги × длина / 1000;
+   калории = вес × расстояние × 0,75 */
+function stepsKcal(steps){
+  steps = Number(steps) || 0;
+  if(!(steps > 0)) return 0;
+  const H = Number(DB.profile.heightCm) || 175, W = currentWeight() || 70;
+  const stepLen = H * 0.415 / 100, km = steps * stepLen / 1000;
+  return Math.round(W * km * 0.75);
+}
+function stepsBurnForDate(dateStr){ return stepsKcal(DB.steps[dateStr]); }
+function burnLabel(t){
+  const w = t.burnedWk > 0, st = t.burnedSteps > 0;
+  return w && st ? 'Сожжено за шаги и тренировку' : st ? 'Сожжено за шаги' : 'Сожжено на тренировке';
+}
 function workoutDoneCount(mondayKey = weekMondayKey()){
   return (DB.workouts[mondayKey] || []).filter(w => w && w.done).length;
 }
@@ -544,13 +558,13 @@ function ensureWorkoutSlots(mondayKey = weekMondayKey()){
 
 function dayTotals(key){
   const list = DB.entries[key] || [];
-  const burned = workoutBurnForDate(key);
+  const burnedWk = workoutBurnForDate(key), burnedSteps = stepsBurnForDate(key), burned = burnedWk + burnedSteps;
   return {
     kcal:sum(list, e => e.kcal), p:sum(list, e => e.p), f:sum(list, e => e.f), c:sum(list, e => e.c),
     count:list.length,
     water:sum(DB.water[key] || [], x => x),
     steps:Number(DB.steps[key]) || 0,
-    burned
+    burned, burnedWk, burnedSteps
   };
 }
 
@@ -1010,7 +1024,7 @@ function renderHome(){
   const wkCount = workoutDoneCount();
   const wkTotal = P.workoutsPerWeek || 0;
   const burnedLine = burned > 0
-    ? `<div class="burn">${icon('fire')} Сожжено на тренировке: +${eV(burned)} ${eU()}${P.workoutCountInGoal ? ' · учтено в норме' : ''}</div>` : '';
+    ? `<div class="burn">${icon('fire')} ${burnLabel(t)}: +${eV(burned)} ${eU()}${P.workoutCountInGoal ? ' · учтено в норме' : ''}</div>` : '';
   return onboard + `<div class="hello"><div class="d">${date}</div><h1>${P.name ? greet + ', ' + esc(P.name) + '!' : 'Сегодня'}</h1></div>
     <div class="tiles">
       ${tile('nutrition', 'food', 'Питание', `<b>${eV(t.kcal)}</b> / ${eV(T.kcal)} ${eU()}`, t.kcal, T.kcal, 'var(--a)', 'tile-food')}
@@ -1139,7 +1153,7 @@ function renderDiary(){
       ${items.map(row).join('')}</div>`;
   };
   const burnedLine = t.burned > 0
-    ? `<div class="burn" style="margin:10px 0 0">${icon('fire')} Сожжено на тренировке: +${eV(t.burned)} ${eU()}${DB.profile.workoutCountInGoal ? ' · учтено в норме' : ''}</div>` : '';
+    ? `<div class="burn" style="margin:10px 0 0">${icon('fire')} ${burnLabel(t)}: +${eV(t.burned)} ${eU()}${DB.profile.workoutCountInGoal ? ' · учтено в норме' : ''}</div>` : '';
   return screenHead('Дневник') + dayNav() + `<div class="card sumc"><div class="big">${eV(t.kcal)} <span class="muted">из ${eV(T.kcal)} ${eU()}</span></div>
     <div class="mac"><div><b>${Math.round(t.p)} г</b><span>белки</span></div><div><b>${Math.round(t.f)} г</b><span>жиры</span></div>
     <div><b>${Math.round(t.c)} г</b><span>углеводы</span></div></div>
@@ -1810,7 +1824,7 @@ function renderNutrition(){
       <span><b>${Math.round(v)} г</b> / ${goal} г</span></div>
       <div class="bar"><i style="width:${pc.toFixed(1)}%;background:${goal > 0 && v > goal ? 'var(--danger)' : m.col}"></i></div></button>`; };
   const burnedLine = t.burned > 0
-    ? `<div class="burn">${icon('fire')} Сожжено на тренировке: +${eV(t.burned)} ${eU()}${DB.profile.workoutCountInGoal ? ' · учтено в норме' : ''}</div>` : '';
+    ? `<div class="burn">${icon('fire')} ${burnLabel(t)}: +${eV(t.burned)} ${eU()}${DB.profile.workoutCountInGoal ? ' · учтено в норме' : ''}</div>` : '';
   const frequent = computeFrequentFoods(10);
   const freqHTML = frequent.length ? `<div class="freq-wrap">
     <div class="freq-title"><span>Частые продукты</span><button data-act="freq-all">все</button></div>
@@ -1989,11 +2003,27 @@ function renderActivity(){
   return screenHead('Активность') + card(bigRing(v, T.stepsGoal, 'шагов', 'var(--f-green)', n0, 'steps-big') + goalRow('s-goal', 'Цель на день', n0(T.stepsGoal) + ' шагов'))
     + workoutsBlock()
     + card(`<h2 class="card-title">Шаги за сегодня</h2><div style="margin-top:12px">
-      ${field('Всего шагов за день', {id:'s-val', value:v > 0 ? String(v) : '', mode:'numeric', placeholder:'Например, 6500'})}</div>
+      ${field('Всего шагов за день', {id:'s-val', value:v > 0 ? String(v) : '', mode:'numeric', placeholder:'Например, 6500'})}
+      <div id="s-burn">${stepsBurnHTML(v)}</div></div>
       ${button('Сохранить', {kind:'primary', block:true, attrs:'data-act="s-save"'})}
       ${v > 0 ? `<div style="margin-top:10px">${button('Сбросить за сегодня', {kind:'danger', block:true, attrs:'data-act="s-reset"'})}</div>` : ''}`)
     + card(weekChart(T.stepsGoal));
 }
+function stepsBurnHTML(steps){
+  const sk = stepsKcal(steps);
+  if(!(sk > 0)) return '';
+  const wk = workoutBurnForDate(dateKey()), u = eU();
+  const cell = (val, lbl) => `<div><b>${eV(val)} ${u}</b><span>${lbl}</span></div>`;
+  return `<div class="wk-total">${wk > 0
+    ? cell(sk, 'за шаги') + cell(wk, 'тренировка') + cell(sk + wk, 'всего сегодня')
+    : cell(sk, 'сожжено за шаги')}</div>${!currentWeight() ? '<p class="muted" style="margin:8px 0 0;font-size:12.5px">Расчёт для веса 70 кг — укажите вес в профиле</p>' : ''}`;
+}
+document.addEventListener('input', e => {
+  if(e.target && e.target.id === 's-val'){
+    const box = document.getElementById('s-burn');
+    if(box) box.innerHTML = stepsBurnHTML(Math.round(num(e.target.value)));
+  }
+});
 function saveSteps(){
   const el = document.getElementById('s-val'); if(!el) return;
   const v = Math.round(num(el.value));
@@ -2054,7 +2084,7 @@ function calDetail(k){
     ['Углеводы', `${Math.round(t.c)} г`],
     ['Вода', `${wV(t.water)} / ${wV(T.waterGoal)} ${wU()}`],
     ['Шаги', `${n0(t.steps)} / ${n0(T.stepsGoal)}`],
-    ['Сожжено на тренировке', t.burned ? `+${eV(t.burned)} ${eU()}` : '—'],
+    [burnLabel(t), t.burned ? `+${eV(t.burned)} ${eU()}` : '—'],
     ['Записей в дневнике', String(t.count)]
   ];
   return `<div class="sth"><h2 class="card-title">${dayLabel(k)}</h2></div>
