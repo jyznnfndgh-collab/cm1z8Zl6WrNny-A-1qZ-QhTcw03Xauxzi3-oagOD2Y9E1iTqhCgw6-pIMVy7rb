@@ -477,7 +477,8 @@ function normalize(d, fb){
     items:(Array.isArray(m.items) ? m.items : []).filter(isObj).map(it => ({
       foodId:str(it.foodId, 40), name:str(it.name, 100) || 'Продукт',
       qty:nn(it.qty), unit:str(it.unit, 12) || 'г', grams:nn(it.grams),
-      kcal:nn(it.kcal), p:nn(it.p), f:nn(it.f), c:nn(it.c)
+      kcal:nn(it.kcal), p:nn(it.p), f:nn(it.f), c:nn(it.c),
+      uLabel:str(it.uLabel, 12), uGrams:nn(it.uGrams)
     }))
   })).filter(m => m.name && m.items.length);
 
@@ -1617,10 +1618,14 @@ function scenarioForm(editId){
     if(!box) return;
     box.innerHTML = items.length ? items.map((it, i) => `
       <div class="wk-row" style="padding:8px 0">
-        <div class="r"><b>${esc(it.name)}</b><span>${fmt(it.qty)} ${esc(it.unit)} · ${it.grams ? fmt(it.grams) + ' г · ' : ''}${eV(it.kcal)} ${eU()}</span></div>
+        <button type="button" class="r" data-ed="${i}" style="background:none;border:0;padding:0;text-align:left;flex:1;min-width:0;color:inherit"><b>${esc(it.name)}</b><span>${fmt(it.qty)} ${esc(it.unit)} · ${it.grams ? fmt(it.grams) + ' г · ' : ''}${eV(it.kcal)} ${eU()} · изменить</span></button>
         <button type="button" class="iconbtn" data-rm="${i}">${icon('trash')}</button>
       </div>`).join('') : '<div class="note" style="padding:8px 0">Добавьте продукты</div>';
     box.querySelectorAll('[data-rm]').forEach(b => b.addEventListener('click', () => { items.splice(+b.dataset.rm, 1); redraw(ov); }));
+    box.querySelectorAll('[data-ed]').forEach(b => b.addEventListener('click', async () => {
+      const i = +b.dataset.ed, upd = await scenarioItemQty(items[i]);
+      if(upd){ items[i] = upd; redraw(ov); }
+    }));
     const tot = $id(ov, 'scn-total');
     if(tot) tot.textContent = `${eV(sum(items, x => x.kcal))} ${eU()}`;
   };
@@ -1658,6 +1663,8 @@ function scenarioForm(editId){
           const kcal = f.per100.kcal * g / 100;
           it = {foodId:f.id, name:f.name, qty, unit:label, grams:g,
             kcal:r1(kcal), p:r1(f.per100.p*g/100), f:r1(f.per100.f*g/100), c:r1(f.per100.c*g/100)};
+          if(f.units && f.units.length){ it.uLabel = label; it.uGrams = g; }
+          it = await scenarioItemQty(it);
         } else if(choice === 'man'){
           it = await manualScenarioItem();
         }
@@ -1685,6 +1692,57 @@ function scenarioForm(editId){
       }}
     ]
   }).then(() => render(true));
+}
+async function scenarioItemQty(it){
+  if(!it) return null;
+  const unit = it.unit || 'г', Q0 = Number(it.qty) || 0, G0 = Number(it.grams) || 0;
+  let pLabel = it.uLabel || '', pGrams = Number(it.uGrams) || 0;
+  if(!pGrams && unit !== 'г' && Q0 > 0 && G0 > 0){ pLabel = unit; pGrams = G0 / Q0; }
+  const canToggle = !!(pLabel && pGrams > 0 && G0 > 0);
+  let mode = (unit === 'г' && G0 > 0) ? 'g' : 'u';
+  if(!canToggle && unit === 'г') mode = 'g';
+  const gramsOf = (q, m) => G0 <= 0 ? 0 : (m === 'g' ? q : (canToggle ? q * pGrams : (Q0 > 0 ? q / Q0 * G0 : q)));
+  const factorOf = (q, m) => G0 > 0 ? gramsOf(q, m) / G0 : (Q0 > 0 ? q / Q0 : 1);
+  const unitOf = m => m === 'g' ? 'г' : (canToggle ? pLabel : unit);
+  const startVal = () => mode === 'g' ? (unit === 'г' ? Q0 : G0) : Q0;
+  const segHTML = () => canToggle
+    ? `<div class="seg" style="margin-top:4px"><button type="button" data-qm="u" class="${mode === 'u' ? 'on' : ''}">${esc(pLabel)}</button><button type="button" data-qm="g" class="${mode === 'g' ? 'on' : ''}">г</button></div>` : '';
+  const r = await openModal({
+    title: esc(it.name),
+    message:'Укажите, сколько продукта входит в сценарий.',
+    content: `<div id="qi-seg">${segHTML()}</div>
+      ${field('Количество (<span id="qi-ul">' + esc(unitOf(mode)) + '</span>)', {id:'qi-qty', value:fmt(startVal()), mode:'decimal'})}
+      <div class="note" id="qi-prev" style="padding:4px 0 8px"></div>`,
+    onOpen: ov => {
+      const inp = $id(ov, 'qi-qty');
+      const prev = () => {
+        const q = num(inp.value), f = q > 0 ? factorOf(q, mode) : 0;
+        $id(ov, 'qi-prev').textContent = q > 0
+          ? `${G0 > 0 ? '≈ ' + fmt(gramsOf(q, mode)) + ' г · ' : ''}${eV(it.kcal * f)} ${eU()}` : '';
+      };
+      inp.addEventListener('input', prev);
+      ov.querySelectorAll('[data-qm]').forEach(b => b.addEventListener('click', () => {
+        const q = num(inp.value), nm = b.dataset.qm;
+        if(nm === mode) return;
+        if(q > 0) inp.value = fmt(nm === 'g' ? q * pGrams : q / pGrams);
+        mode = nm;
+        ov.querySelectorAll('[data-qm]').forEach(x => x.classList.toggle('on', x.dataset.qm === mode));
+        $id(ov, 'qi-ul').textContent = unitOf(mode);
+        prev();
+      }));
+      prev(); inp.select();
+    },
+    buttons:[{text:'Отмена', kind:'ghost', value:false},
+      {text:'Готово', kind:'primary', value:true, onClick: ov => {
+        const q = num($id(ov, 'qi-qty').value);
+        if(!(q > 0)){ toast('Введите количество'); return false; }
+        const f = factorOf(q, mode), g = gramsOf(q, mode);
+        return {...it, qty:r1(q), unit:unitOf(mode), grams:G0 > 0 ? r1(g) : it.grams,
+          kcal:r1(it.kcal * f), p:r1(it.p * f), f:r1(it.f * f), c:r1(it.c * f),
+          uLabel:canToggle ? pLabel : (it.uLabel || ''), uGrams:canToggle ? r1(pGrams * 100) / 100 : (it.uGrams || 0)};
+      }}]
+  });
+  return r && typeof r === 'object' ? r : null;
 }
 async function manualScenarioItem(){
   const r = await openModal({
