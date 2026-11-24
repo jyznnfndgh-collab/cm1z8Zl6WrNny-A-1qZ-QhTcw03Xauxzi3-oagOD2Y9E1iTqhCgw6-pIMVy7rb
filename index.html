@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Питание">
+<title>Трекер питания</title>
+<style>
+:root{
+  --bg: #000000;
+  --glass-bg: rgba(30, 30, 32, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --a: #FF2D55;
+  --a2: #FF3B30;
+  --peach: #FF7B54;
+  --peach-light: #FFB088;
+  --f-blue: #32ADE6;
+  --f-green: #34C759;
+  --f-purple: #AF52DE;
+  --f-red: #FF3B30;
+  --tx: #FFFFFF;
+  --mut: #A1A1A5;
+  --danger: #FF3B30;
+  --r: 24px;
+  color-scheme: dark;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);
+  font:16px/1.4 -apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;
+  background-image: 
+    radial-gradient(circle at 50% -20%, rgba(255, 123, 84, 0.4) 0%, rgba(255, 45, 85, 0.1) 40%, transparent 70%),
+    linear-gradient(180deg, rgba(0,0,0,0) 0%, #000000 60%);
+  background-attachment: fixed;
+  background-color: #1a0a05;
+}
+body.lock{overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+#app{max-width:520px;margin:0 auto;min-height:100dvh;
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 16px calc(env(safe-area-inset-bottom,0px) + 28px)}
+
+.top{display:flex;align-items:center;gap:12px;min-height:44px;margin-bottom:16px}
+.top h1{margin:0;font-size:22px;font-weight:650;letter-spacing:-.01em}
+.top .sp{flex:1}
+.iconbtn{width:40px;height:40px;border-radius:14px;border:1px solid var(--glass-border);background:var(--glass-bg);
+  display:grid;place-items:center;padding:0;flex:none;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:transform .12s,background .12s}
+.iconbtn:active{transform:scale(.92);background:rgba(255,255,255,0.15)}
+.iconbtn svg{width:20px;height:20px}
+.hello{margin:4px 0 18px}
+.hello .d{color:var(--mut);font-size:15px;font-weight:500; text-shadow: 0 2px 8px rgba(0,0,0,0.5);}
+.hello h1{margin:2px 0 0;font-size:32px;font-weight:700;letter-spacing:-.03em; text-shadow: 0 2px 12px rgba(0,0,0,0.5);}
+
+.ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+.card{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--r);padding:18px;
+  backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.card + .card{margin-top:12px}
+.card-title{margin:0 0 4px;font-size:18px;font-weight:650;letter-spacing:-.01em}
+.muted{color:var(--mut);font-size:14px}
+
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--r);padding:16px;text-align:left;
+  display:flex;flex-direction:column;gap:14px;min-height:158px;transition:transform .15s,background .15s;
+  backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);position:relative}
+.tile:active{transform:scale(.96);background:rgba(255,255,255,0.1)}
+.tile .name{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.tile .val{color:var(--mut);font-size:13px;margin-top:2px;position:relative;z-index:1}
+.tile .val b{color:var(--tx);font-weight:600}
+.tile .bottom{margin-top:auto;position:relative;z-index:1}
+
+.rows{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:14px;width:100%;background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:var(--r);padding:14px 16px;text-align:left;transition:transform .12s,background .12s;
+  backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);
+  box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.row:active{transform:scale(.98);background:rgba(255,255,255,0.15)}
+.row .t{flex:1;font-size:16px;font-weight:550}
+.row .chev{width:18px;height:18px;color:var(--mut)}
+.badge{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none;
+  background:rgba(255,45,85,.15);color:var(--a);border:1px solid rgba(255,45,85,.3)}
+
+.ring{position:relative;display:inline-block;flex:none}
+.ring svg{display:block}
+.ring-in{position:absolute;inset:0;display:grid;place-items:center;color:inherit}
+.ring-in .ic{width:22px;height:22px}
+.ring-in .num{font-size:15px;font-weight:650;color:var(--tx)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 20px;
+  border-radius:16px;border:1px solid transparent;font-weight:600;transition:transform .1s,opacity .1s}
+.btn:active{transform:scale(.97);opacity:.9}
+.btn.block{width:100%}
+.btn.primary{background:var(--a);color:#fff}
+.btn.ghost{background:rgba(255,255,255,0.08);border-color:var(--glass-border);color:var(--tx);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.btn.soft{background:rgba(255,45,85,.15);border-color:rgba(255,45,85,.3);color:var(--a);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.btn.danger{background:rgba(255,59,48,.15);border-color:rgba(255,59,48,.35);color:#FF453A;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.btn .ic{width:20px;height:20px}
+.btn[disabled]{opacity:.5;pointer-events:none}
+
+.field{display:block;margin-bottom:12px}
+.field > span{display:block;font-size:13px;color:var(--mut);margin-bottom:6px;font-weight:500}
+.input{width:100%;min-height:48px;padding:0 14px;border-radius:12px;background:rgba(0,0,0,0.4);color:var(--tx);
+  border:1px solid var(--glass-border);font:inherit;font-size:16px;outline:none;-webkit-appearance:none;appearance:none;}
+.input::placeholder{color:#8E8E93}
+.input:focus{border-color:var(--a);box-shadow:0 0 0 3px rgba(255,45,85,.2)}
+.btn:focus-visible,.row:focus-visible,.tile:focus-visible,.iconbtn:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.err{color:var(--danger);font-size:13px;margin:-6px 0 12px}
+
+.empty{text-align:center;padding:36px 20px}
+.empty .badge{width:60px;height:60px;border-radius:16px;margin:0 auto 16px}
+.empty .badge .ic{width:28px;height:28px}
+.empty h2{margin:0 0 6px;font-size:18px;font-weight:600}
+.empty p{margin:0 auto 20px;max-width:280px;color:var(--mut);font-size:14px}
+
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;
+  animation:fade .18s ease-out;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.sheet{width:100%;max-width:520px;background:var(--glass-bg);border:1px solid var(--glass-border);border-bottom:0;
+  border-radius:24px 24px 0 0;padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
+  max-height:88dvh;overflow:auto;animation:up .22s ease-out;backdrop-filter:blur(40px) saturate(150%);-webkit-backdrop-filter:blur(40px) saturate(150%)}
+.sheet h3{margin:0 0 6px;font-size:20px;font-weight:650}
+.sheet .msg{color:var(--mut);font-size:15px;margin:0 0 16px}
+.sheet .acts{display:flex;gap:10px;margin-top:8px}
+.sheet .acts .btn{flex:1}
+.grab{width:40px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);margin:-8px auto 14px}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%);z-index:60;
+  background:var(--glass-bg);border:1px solid var(--glass-border);padding:10px 16px;border-radius:14px;font-size:14px;font-weight:500;max-width:90%;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 4px 12px rgba(0,0,0,0.5)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.daynav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.daylbl{flex:1;min-height:40px;border-radius:14px;border:1px solid var(--glass-border);background:var(--glass-bg);font-weight:600;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.daylbl::first-letter{text-transform:uppercase}
+.grid2,.grid3{display:grid;gap:10px}.grid2{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:repeat(3,1fr)}
+select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A1A1A5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;background-size:18px;padding-right:40px}
+.chk{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:14px;color:var(--mut)}
+.chk input{width:22px;height:22px;accent-color:var(--a);flex:none}
+.search{position:relative;display:block;margin-bottom:10px}
+.search .ic{position:absolute;left:14px;top:14px;width:20px;height:20px;color:var(--mut)}
+.search .input{padding-left:44px}
+
+.sumc .big{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.sumc .mac{display:flex;gap:8px;margin-top:10px}
+.sumc .mac div{flex:1;background:rgba(0,0,0,0.4);border-radius:12px;padding:8px 10px;border:1px solid var(--glass-border)}
+.sumc .mac b{display:block;font-weight:650}.sumc .mac span{color:var(--mut);font-size:12.5px}
+.mh{display:flex;align-items:center;gap:12px}.mh>div{flex:1}.mn{font-size:17px;font-weight:600}
+
+.sw{position:relative;overflow:hidden;border-radius:14px;margin-top:10px}
+.sw-del{position:absolute;right:0;top:0;bottom:0;width:88px;border:0;border-radius:0;background:var(--danger);color:#fff;font-weight:600}
+.sw-in{position:relative;display:flex;align-items:center;gap:10px;min-height:58px;padding:10px 6px 10px 12px;
+  background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:14px;touch-action:pan-y;transition:transform .2s}
+.sw.open .sw-in{transform:translateX(-88px)}
+.sw-in .tx{flex:1;min-width:0}
+.nm{font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sub{display:flex;flex-wrap:wrap;gap:0 10px;color:var(--mut);font-size:12.5px;margin-top:2px}
+.kc{font-weight:650;white-space:nowrap;text-align:right}
+.kc small{display:block;color:var(--mut);font-weight:400;font-size:11px}
+.mini{width:36px;height:36px;border-radius:12px;border:0;background:transparent;color:var(--mut);display:grid;place-items:center;padding:0;flex:none}
+.mini .ic{width:18px;height:18px}
+.frow{display:block;width:100%;text-align:left;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:12px;padding:12px;margin-top:8px}
+.frow:active{border-color:var(--a)}
+.note{text-align:center;color:var(--mut);font-size:14px;padding:18px 0 8px}
+
+.ringbtn{display:block;margin:4px auto 0;background:none;border:0;padding:0}
+.rc{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--tx)}
+.rc b{font-size:42px;line-height:1;font-weight:700;letter-spacing:-.03em}
+.rc span{color:var(--mut);font-size:14px;font-weight:500}
+.rc em{font-style:normal;color:var(--a);font-size:14px;font-weight:600;margin-top:6px}
+.macro{display:block;width:100%;background:none;border:0;padding:10px 0;text-align:left}
+.mt{display:flex;justify-content:space-between;font-size:15px;margin-bottom:8px}
+.mt b{font-weight:650}.mt span:last-child{color:var(--mut)}
+.bar{height:8px;border-radius:4px;background:rgba(0,0,0,0.4);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;transition:width .3s}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--glass-border)}
+.kv span{color:var(--mut)}.kv b{font-weight:600;text-align:right}
+.sheet h4{margin:16px 0 0;font-size:14px;font-weight:600;color:var(--a)}
+
+.goalrow{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:0 14px;border-radius:12px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);text-align:left}
+.goalrow:active{border-color:var(--a)}
+.goalrow span{flex:1;color:var(--mut);font-size:14px}.goalrow b{font-weight:650}
+.goalrow .ic{width:18px;height:18px;color:var(--a)}
+.inl{display:flex;gap:10px}.inl .input{flex:1;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{padding:6px 12px;border-radius:10px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);font-size:14px}
+.chip.last{border-color:rgba(255,123,84,.6);color:var(--peach)}
+.bars{position:relative;display:flex;gap:8px;height:130px;border-bottom:1px solid var(--glass-border)}
+.bars .b{flex:1;display:flex;align-items:flex-end}
+.bars .b i{display:block;width:100%;min-height:3px;border-radius:6px 6px 2px 2px;background:rgba(255,123,84,.4)}
+.bars .b i.hit{background:var(--peach)}
+.gl{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,123,84,.7);pointer-events:none}
+.lbls{display:flex;gap:8px;margin-top:8px}
+.lbls div{flex:1;text-align:center;font-size:12px;color:var(--mut)}
+.lbls b{display:block;color:var(--tx);font-size:12px;font-weight:600}
+.lbls .tod{color:var(--peach)}
+
+.cap::first-letter{text-transform:uppercase}
+.wd{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px}
+.wd span{text-align:center;font-size:12px;color:var(--mut)}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cd{position:relative;display:grid;place-items:center;min-height:48px;padding:0 0 4px;border-radius:12px;
+  border:1px solid transparent;background:transparent;font-weight:550;transition:transform .1s}
+.cd:active{transform:scale(.94)}
+.cd.tod{border-color:var(--peach);color:var(--peach)}
+.cd.sel{background:var(--a);border-color:var(--a);color:#fff}
+.cd.dot::after{content:"";position:absolute;bottom:7px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--peach)}
+.cd.sel.dot::after{background:#fff}
+.cd:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.cm{padding:10px 0;border-bottom:1px solid var(--glass-border)}
+.cm:last-child{border-bottom:0;padding-bottom:0}
+.cm-h{display:flex;justify-content:space-between;gap:12px;font-weight:600}
+.cm-h span:last-child{color:var(--peach)}
+.li{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--mut);padding:3px 0 0}
+.li span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.li span:last-child{white-space:nowrap}
+.pm{margin:0 0 14px}.pm:last-child{margin-bottom:0}
+.seg{display:flex;gap:6px;padding:4px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);border-radius:12px}
+.seg button{flex:1;min-height:40px;border:0;border-radius:10px;background:transparent;color:var(--mut);font-weight:600}
+.seg button.on{background:var(--a);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.sth{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.sth .card-title{margin:0}
+.sta{white-space:nowrap}.sta b{font-size:20px;font-weight:700}.sta span{color:var(--mut);font-size:13px}
+.chart{display:block;width:100%;height:auto;margin-top:12px}
+.lg{margin:8px 0 0;font-size:12.5px;color:var(--mut)}
+.stack{display:flex;flex-direction:column;gap:8px}
+.sub-h{margin:14px 0 8px;font-size:13px;color:var(--mut)}
+.goalrow b{max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hello h1{font-size:28px;overflow-wrap:anywhere}
+.how{list-style:none;margin:12px 0 0;padding:0;counter-reset:s}
+.how li{counter-increment:s;display:flex;gap:12px;align-items:flex-start;padding:8px 0;font-size:15px}
+.how li::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--a);background:rgba(255,45,85,.15);border:1px solid rgba(255,45,85,.3)}
+.how .ic{width:18px;height:18px;vertical-align:-4px;color:var(--a)}
+.onb{padding:0 0 8px}
+.steps{display:flex;gap:6px;margin:0 0 18px}
+.steps i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.15)}
+.steps i.on{background:var(--a)}
+.sex{display:flex;gap:8px;margin-bottom:12px}
+.sex button{flex:1;min-height:48px;border-radius:12px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);font-weight:600}
+.sex button.on{background:rgba(255,45,85,.16);border-color:var(--a);color:var(--a)}
+.act{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.act button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px;border-radius:12px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border)}
+.act button.on{border-color:var(--a);background:rgba(255,45,85,.12)}
+.act .r{flex:1}.act .r b{display:block;font-weight:600}.act .r span{color:var(--mut);font-size:13px}
+.act .k{color:var(--a);font-weight:600}
+.tgt{border-radius:12px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);padding:12px;margin-bottom:10px}
+.tgt .row2{display:flex;justify-content:space-between;gap:12px;padding:4px 0}
+.tgt .row2 span{color:var(--mut)}.tgt .row2 b{font-weight:650}
+.warn{border-radius:12px;background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.4);color:#FF453A;padding:12px;font-size:14px;margin:10px 0}
+.info{border-radius:12px;background:rgba(255,123,84,.15);border:1px solid rgba(255,123,84,.4);padding:12px;font-size:14px;margin:10px 0}
+details.how2{margin-top:10px;border-radius:12px;background:rgba(0,0,0,0.4);border:1px solid var(--glass-border);padding:10px 12px}
+details.how2 summary{cursor:pointer;font-weight:600;font-size:14px}
+details.how2 .kv{font-size:13px;padding:8px 0}
+.progress-line{height:10px;border-radius:5px;background:rgba(0,0,0,0.5);overflow:hidden;margin:10px 0 6px}
+.progress-line i{display:block;height:100%;background:var(--peach);border-radius:5px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--mut);margin-top:6px}
+.legend b{color:var(--tx)}
+.wchart{display:block;width:100%;height:auto;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============ ИКОНКИ ============ */
+const ICONS = {
+  food:'<path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10"/><path d="M17 21V3c-2.5 1.5-4 4.5-4 8h4"/>',
+  water:'<path d="M12 3s6 6.2 6 10.5a6 6 0 0 1-12 0C6 9.200 12 3 12 3z"/><path d="M9.500 14a2.600 2.600 0 0 0 2.500 2.500"/>',
+  activity:'<path d="M3 12h4l2.500-6 4 12 2.500-6H21"/>',
+  diary:'<path d="M6 3h11a2 2 0 0 1 2 2v16H8a2 2 0 0 1-2-2V3z"/><path d="M6 19a2 2 0 0 1 2-2h11M10 8h5M10 11.500h5"/>',
+  calendar:'<rect x="3.500" y="5" width="17" height="15.500" rx="3"/><path d="M8 3v4M16 3v4M3.500 10h17"/>',
+  stats:'<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4.500 20.500c.8-3.800 3.700-6 7.500-6s6.700 2.200 7.500 6"/>',
+  chev:'<path d="M9 5l7 7-7 7"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  home:'<path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-9z"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>',
+  search:'<circle cx="11" cy="11" r="6.500"/><path d="M16 16l4.500 4.500"/>',
+  box:'<path d="M3.500 8L12 4l8.500 4v8L12 20l-8.500-4V8z"/><path d="M3.500 8L12 12l8.500-4M12 12v8"/>',
+  edit:'<path d="M4 20h4L19 9a2.800 2.800 0 0 0-4-4L4 16v4z"/><path d="M13.500 6.500l4 4"/>',
+  undo:'<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+  share:'<path d="M12 15V4M8 8l4-4 4 4"/><path d="M7 11H6a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7a1 1 0 0 0-1-1h-1"/>',
+  download:'<path d="M12 4v11M8 11l4 4 4-4M5 19.500h14"/>',
+  upload:'<path d="M12 16V5M8 9l4-4 4 4M5 19.500h14"/>'
+};
+const icon = (n, cls='ic') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+
+/* ============ ДАННЫЕ ============ */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const pad = n => String(n).padStart(2, '0');
+const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sum = (arr, f) => arr.reduce((a, x) => a + (Number(f(x)) || 0), 0);
+
+const KEY = 'nutrition-tracker-v1';
+const UNITS = {
+  energy:{kcal:{label:'ккал', f:1, d:0, dp:1}, kj:{label:'кДж', f:4.184, d:0, dp:0}},
+  water:{ml:{label:'мл', f:1, d:0, quick:[150,250,500]}, l:{label:'л', f:.001, d:2, quick:[250,500,1000]},
+    oz:{label:'fl oz', f:1/29.5735, d:1, quick:[237,355,473]}}
+};
+const U = k => UNITS[k][DB.profile.units[k]] || UNITS[k][Object.keys(UNITS[k])[0]];
+const fnum = (v, d = 0) => (Number(v) || 0).toLocaleString('ru-RU', {maximumFractionDigits:d});
+const dec = (v, d) => String(+Number(v).toFixed(d)).replace('.', ',');
+const eV = (kcal, d = 0) => fnum(kcal * U('energy').f, d), eU = () => U('energy').label;
+const wV = ml => fnum(ml * U('water').f, U('water').d), wU = () => U('water').label;
+const toKcal = v => v / U('energy').f, toMl = v => v / U('water').f;
+
+const emptyData = () => ({
+  profile:{name:'', age:null, sex:'', heightCm:null, weightKg:null, activity:null, onboardingDone:false,
+    lastBackup:0, calcKg:null, calcDate:'', units:{energy:'kcal', water:'ml'}},
+  goal:{type:'maintain', startKg:null, startDate:'', targetKg:null, targetDate:''},
+  targets:{kcal:2000, protein:100, fat:70, carb:250, waterGoal:2000, stepsGoal:8000, source:'manual', calcDate:''},
+  weights:{},
+  foods:[], entries:{}, water:{}, steps:{}
+});
+const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+const TGT_KEYS = ['kcal','protein','fat','carb','waterGoal','stepsGoal'];
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const nn = (v, d = 0) => { const n = Number(v); return isFinite(n) && n >= 0 ? n : d; };
+const str = (v, max) => typeof v === 'string' ? v.slice(0, max) : '';
+
+function normalize(d, fb){
+  const base = emptyData(), P = isObj(d.profile) ? d.profile : null;
+  const profile = {...base.profile, ...(fb || {})};
+  if(P){
+    if(P.age != null && Number.isFinite(+P.age) && +P.age >= 0) profile.age = +P.age;
+    if(P.heightCm != null && Number.isFinite(+P.heightCm) && +P.heightCm > 0) profile.heightCm = +P.heightCm;
+    if(P.weightKg != null && Number.isFinite(+P.weightKg) && +P.weightKg > 0) profile.weightKg = +P.weightKg;
+    if(P.sex === 'm' || P.sex === 'f' || P.sex === '') profile.sex = P.sex;
+    if(P.activity != null && Number.isFinite(+P.activity)) profile.activity = +P.activity;
+    profile.onboardingDone = !!P.onboardingDone;
+    profile.name = str(P.name, 30).trim();
+    profile.lastBackup = nn(P.lastBackup);
+    profile.calcKg = P.calcKg != null && Number.isFinite(+P.calcKg) ? +P.calcKg : null;
+    profile.calcDate = typeof P.calcDate === 'string' ? P.calcDate : '';
+    const pu = isObj(P.units) ? P.units : {};
+    profile.units = {energy:UNITS.energy[pu.energy] ? pu.energy : 'kcal', water:UNITS.water[pu.water] ? pu.water : 'ml'};
+  }
+  let targets = {...base.targets};
+  if(isObj(d.targets)){ TGT_KEYS.forEach(k => { targets[k] = nn(d.targets[k], base.targets[k]); });
+    targets.source = d.targets.source === 'auto' ? 'auto' : 'manual';
+    targets.calcDate = typeof d.targets.calcDate === 'string' ? d.targets.calcDate : '';
+  } else {
+    ['kcal','protein','fat','carb','waterGoal','stepsGoal'].forEach(k => { if(P && P[k] != null) targets[k] = nn(P[k], targets[k]); });
+    targets.source = 'manual';
+  }
+  const goal = {...base.goal};
+  if(isObj(d.goal)){
+    if(d.goal.type === 'lose' || d.goal.type === 'gain' || d.goal.type === 'maintain') goal.type = d.goal.type;
+    goal.startKg = nn(d.goal.startKg) || null; goal.startDate = DATE_RE.test(d.goal.startDate) ? d.goal.startDate : '';
+    goal.targetKg = nn(d.goal.targetKg) || null; goal.targetDate = DATE_RE.test(d.goal.targetDate) ? d.goal.targetDate : '';
+  }
+  const foods = (Array.isArray(d.foods) ? d.foods : []).filter(f => isObj(f) && typeof f.name === 'string' && f.name.trim())
+    .map(f => { const q = isObj(f.per100) ? f.per100 : {};
+      return {id:str(f.id, 40) || uid(), name:f.name.trim().slice(0, 100), per100:{kcal:nn(q.kcal), p:nn(q.p), f:nn(q.f), c:nn(q.c)}}; });
+  const entries = {}, water = {}, steps = {}, E = isObj(d.entries) ? d.entries : {}, W = isObj(d.water) ? d.water : {}, S = isObj(d.steps) ? d.steps : {};
+  Object.keys(E).filter(k => DATE_RE.test(k) && Array.isArray(E[k])).forEach(k => {
+    const l = E[k].filter(isObj).map(e => ({id:str(e.id, 40) || uid(), meal:str(e.meal, 20), name:str(e.name, 100) || 'Без названия',
+      grams:nn(e.grams), kcal:nn(e.kcal), p:nn(e.p), f:nn(e.f), c:nn(e.c), time:/^\d{2}:\d{2}$/.test(e.time) ? e.time : ''}));
+    if(l.length) entries[k] = l; });
+  Object.keys(W).filter(k => DATE_RE.test(k) && Array.isArray(W[k])).forEach(k => {
+    const l = W[k].map(Number).filter(x => isFinite(x) && x > 0); if(l.length) water[k] = l; });
+  Object.keys(S).filter(k => DATE_RE.test(k)).forEach(k => { const n = Number(S[k]); if(isFinite(n) && n > 0) steps[k] = Math.round(n); });
+  const weights = {};
+  if(isObj(d.weights)) Object.keys(d.weights).filter(k => DATE_RE.test(k)).forEach(k => {
+    const n = Number(d.weights[k]); if(isFinite(n) && n > 0 && n < 400) weights[k] = n; });
+  return {profile, goal, targets, weights, foods, entries, water, steps};
+}
+function loadData(){
+  try{ const raw = localStorage.getItem(KEY); if(!raw) return emptyData();
+    const d = JSON.parse(raw); return isObj(d) ? normalize(d) : emptyData();
+  }catch(e){ return emptyData(); }
+}
+let DB = loadData();
+
+function saveData(){
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); return true; }
+  catch(e){ toast('Не удалось сохранить данные'); return false; }
+}
+function update(fn){ fn(DB); return saveData(); }
+
+function dayTotals(key){
+  const list = DB.entries[key] || [];
+  return {
+    kcal:sum(list, e => e.kcal), p:sum(list, e => e.p), f:sum(list, e => e.f), c:sum(list, e => e.c),
+    count:list.length,
+    water:sum(DB.water[key] || [], x => x),
+    steps:Number(DB.steps[key]) || 0
+  };
+}
+
+/* ============ БАЗА ПРОДУКТОВ: IndexedDB ============ */
+const IDB = {
+  _p: null,
+  open(){
+    if(this._p) return this._p;
+    this._p = new Promise((res, rej) => {
+      const r = indexedDB.open('nutrition-foods', 1);
+      r.onupgradeneeded = () => {
+        if(!r.result.objectStoreNames.contains('kv')) r.result.createObjectStore('kv');
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+    return this._p;
+  },
+  async get(k){
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', 'readonly').objectStore('kv').get(k);
+      t.onsuccess = () => res(t.result);
+      t.onerror = () => rej(t.error);
+    });
+  },
+  async set(k, v){
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', 'readwrite').objectStore('kv').put(v, k);
+      t.onsuccess = () => res();
+      t.onerror = () => rej(t.error);
+    });
+  },
+  async del(k){
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('kv', 'readwrite').objectStore('kv').delete(k);
+      t.onsuccess = () => res();
+      t.onerror = () => rej(t.error);
+    });
+  }
+};
+
+let FOODS_DB = [];
+let FOODS_INDEXED = [];
+let FOOD_CATEGORIES = [];
+
+const _norm = s => String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+
+function mapFoods(arr){
+  return (arr || []).map(f => ({
+    id: 'db_' + (f.id || uid()),
+    name: String(f.ru || f.name || '').trim(),
+    per100: {
+      kcal: Number(f.kcal) || 0,
+      p: Number(f.p) || 0,
+      f: Number(f.f) || 0,
+      c: Number(f.c) || 0
+    },
+    _cat: String(f.cat || ''),
+    _syn: String(f.syn || ''),
+    _en: String(f.en || '')
+  })).filter(f => f.name);
+}
+
+function reindexFoods(){
+  FOODS_INDEXED = FOODS_DB.map(f => ({
+    ...f,
+    _hay: _norm([f.name, f._syn, f._en, f._cat].join(' '))
+  }));
+  FOOD_CATEGORIES = [...new Set(FOODS_DB.map(f => f._cat).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+async function loadFoodsFromIDB(){
+  try{
+    const raw = await IDB.get('foods');
+    if(Array.isArray(raw) && raw.length){
+      FOODS_DB = raw;
+      reindexFoods();
+    }
+  }catch(e){ /* IndexedDB недоступен */ }
+}
+
+async function importFoodsFile(file){
+  const text = await file.text();
+  let arr;
+  try{ arr = JSON.parse(text); }
+  catch(e){ throw new Error('Файл не является корректным JSON'); }
+  if(!Array.isArray(arr)) throw new Error('Ожидался массив продуктов');
+  const mapped = mapFoods(arr);
+  if(!mapped.length) throw new Error('В файле нет продуктов с полем ru/name');
+  await IDB.set('foods', mapped);
+  FOODS_DB = mapped;
+  reindexFoods();
+  updateFoodsStatus();
+  toast(`База загружена: ${mapped.length} продуктов`);
+}
+
+async function clearFoodsDB(){
+  await IDB.del('foods');
+  FOODS_DB = []; FOODS_INDEXED = []; FOOD_CATEGORIES = [];
+  updateFoodsStatus();
+  toast('База очищена');
+}
+
+function updateFoodsStatus(){
+  const el = document.getElementById('db-status');
+  if(!el) return;
+  el.innerHTML = FOODS_DB.length
+    ? `Загружено продуктов: <b style="color:var(--tx)">${FOODS_DB.length}</b>`
+    : 'Не загружена. Нажмите «Загрузить файл» и выберите JSON.';
+}
+
+function searchFoodsDB(query, { category = 'all', limit = 40 } = {}){
+  if(!FOODS_INDEXED.length) return [];
+  const q = _norm(query);
+  let pool = category === 'all' ? FOODS_INDEXED : FOODS_INDEXED.filter(f => f._cat === category);
+  if(!q) return pool.slice(0, limit);
+
+  const words = q.split(' ').filter(Boolean);
+  const scored = [];
+  for(const f of pool){
+    if(!words.every(w => f._hay.includes(w))) continue;
+    let score = 0;
+    const name = _norm(f.name);
+    const syn = _norm(f._syn);
+    if(name.startsWith(q)) score += 100;
+    else if(name.includes(q)) score += 60;
+    if(words.every(w => name.includes(w))) score += 20;
+    if(syn.includes(q)) score += 40;
+    if(_norm(f._en).includes(q)) score += 25;
+    scored.push({ f, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.f.name.localeCompare(b.f.name, 'ru'));
+  return scored.slice(0, limit).map(x => x.f);
+}
+
+/* ============ РАСЧЁТ ЦЕЛЕЙ ============ */
+const ACTIVITIES = [
+  {v:1.2, name:'Сидячий образ жизни', note:'Мало движения, офисная работа'},
+  {v:1.375, name:'1–3 тренировки в неделю', note:'Лёгкая активность'},
+  {v:1.55, name:'3–5 тренировок в неделю', note:'Средняя активность'},
+  {v:1.725, name:'6–7 тренировок или физический труд', note:'Высокая активность'}
+];
+
+function calcBMR(weightKg, heightCm, age, sex){
+  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
+  const s = sex === 'm' ? 5 : sex === 'f' ? -161 : -78;
+  return { value: base + s, avg: sex === '' };
+}
+function calcTDEE(bmr, activity){ return bmr * activity; }
+function roundTo(v, step){ return Math.round(v / step) * step; }
+function dateFrom(weeks){
+  const d = new Date(); d.setDate(d.getDate() + Math.round(weeks * 7));
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function weeksBetween(a, b){
+  const d1 = new Date(a + 'T12:00:00'), d2 = new Date(b + 'T12:00:00');
+  return Math.max(0, Math.round((d2 - d1) / (7 * 24 * 3600 * 1000) * 10) / 10);
+}
+function formatDateRu(k){
+  if(!k) return '';
+  const d = new Date(k + 'T12:00:00');
+  return d.toLocaleDateString('ru-RU', {day:'numeric', month:'long', year:'numeric'});
+}
+
+function calcTargets(p, g, userDate){
+  const W = p.weightKg, H = p.heightCm, A = p.age, S = p.sex, act = p.activity || 1.2;
+  const bmr = calcBMR(W, H, A, S), tdee = calcTDEE(bmr.value, act);
+  const type = g.type;
+  const res = {
+    bmr: bmr.value, tdee, bmrAvg: bmr.avg, type,
+    warnings: [], notes: [],
+    desiredRate: 0, actualRate: 0, deficit: 0,
+    targetDate: '', targetDateReal: '', weeks: 0, weeksReal: 0,
+    kcal: tdee, protein: 0, fat: 0, carb: 0, water: 0, steps: 8000,
+    imtNow: W / ((H / 100) ** 2)
+  };
+  const minKcal = S === 'm' ? 1500 : S === 'f' ? 1200 : 1350;
+  const isLoss = type === 'lose', isGain = type === 'gain';
+
+  const targetImt = (g.targetKg && H) ? g.targetKg / ((H / 100) ** 2) : null;
+  if(isLoss && res.imtNow < 18.5){
+    res.warnings.push('Текущий ИМТ ниже 18,5 — план снижения веса не строится. Рекомендуется «Поддерживать» или «Набрать».');
+  }
+  if(isLoss && targetImt && targetImt < 18.5){
+    res.warnings.push('Целевой ИМТ ниже 18,5 — план снижения не строится. Выберите «Поддерживать» или «Набрать».');
+  }
+  if(isGain && targetImt && targetImt > 30){
+    res.notes.push('Целевой ИМТ выше 30 — мягкое напоминание: набор веса стоит обсуждать со специалистом.');
+  }
+
+  if(isLoss || isGain){
+    const delta = g.targetKg - W;
+    let weeks = 0;
+    if(g.targetDate) weeks = weeksBetween(dateKey(), g.targetDate);
+    if(!weeks || weeks <= 0) weeks = 1;
+    let rate = delta / weeks;
+    res.weeks = weeks;
+    res.targetDate = g.targetDate;
+    res.desiredRate = rate;
+    if(isGain && rate > 0.5) rate = 0.5;
+    if(isLoss){
+      const maxLoss = Math.min(0.75, W * 0.01);
+      if(-rate > maxLoss) rate = -maxLoss;
+    }
+    let adj = rate * 1100;
+    if(adj > 500) adj = 500;
+    if(adj < -750) adj = -750;
+    if(adj < 0 && Math.abs(adj) > tdee * 0.25) adj = -tdee * 0.25;
+    res.actualRate = adj / 1100;
+    res.deficit = adj;
+    if(delta !== 0 && Math.abs(res.actualRate) > 0.001){
+      const weeksReal = Math.abs(delta / res.actualRate);
+      res.weeksReal = Math.round(weeksReal * 10) / 10;
+      res.targetDateReal = dateFrom(weeksReal);
+      if(Math.abs(res.actualRate - res.desiredRate) > 0.001){
+        res.warnings.push(`Выбранный срок нереалистичен. Реалистичный темп ≈ ${dec(Math.abs(res.actualRate), 2)} кг/нед, цель примерно к ${formatDateRu(res.targetDateReal)}. Срок можно изменить.`);
+      }
+    }
+    let kcal = tdee + adj;
+    if(kcal < bmr.value){ kcal = bmr.value; res.notes.push('Калории подняты до уровня основного обмена (BMR).'); }
+    if(kcal < minKcal){ kcal = minKcal; res.notes.push(`Калории подняты до безопасного минимума (${minKcal} ккал).`); }
+    res.kcal = roundTo(kcal, 10);
+    if(res.kcal !== roundTo(tdee + adj, 10)){
+      const effAdj = res.kcal - tdee;
+      res.actualRate = effAdj / 1100;
+      if(delta !== 0 && Math.abs(res.actualRate) > 0.001){
+        const weeksReal = Math.abs(delta / res.actualRate);
+        res.weeksReal = Math.round(weeksReal * 10) / 10;
+        res.targetDateReal = dateFrom(weeksReal);
+        if(!res.warnings.some(w => w.includes('Реалистичный темп')))
+          res.warnings.push(`С учётом безопасных границ цель ≈ к ${formatDateRu(res.targetDateReal)}.`);
+      }
+    }
+  } else {
+    res.kcal = roundTo(tdee, 10);
+    res.deficit = 0;
+  }
+
+  const kcal = res.kcal;
+  let proteinPerKg = isLoss ? 2.0 : isGain ? 1.8 : 1.6;
+  let protein = roundTo(proteinPerKg * W, 5);
+  let fat = Math.max(0.9 * W, 0.2 * kcal / 9);
+  fat = roundTo(fat, 5);
+  let carb = (kcal - protein * 4 - fat * 9) / 4;
+  carb = roundTo(Math.max(0, carb), 5);
+  if(carb < 100){
+    protein = roundTo(1.6 * W, 5);
+    fat = roundTo(Math.max(0.8 * W, 0.2 * kcal / 9), 5);
+    carb = roundTo(Math.max(0, (kcal - protein * 4 - fat * 9) / 4), 5);
+    if(carb < 100) res.warnings.push('Углеводов меньше 100 г при текущих ограничениях. Пересмотрите цель или темп.');
+  }
+  res.protein = protein; res.fat = fat; res.carb = carb;
+  res.water = Math.round(Math.min(3500, Math.max(1500, Math.round(30 * W / 50) * 50)));
+  res.steps = 8000;
+  return res;
+}
+
+/* ============ ОБЩИЕ КОМПОНЕНТЫ ============ */
+function ring({value = 0, max = 1, size = 56, stroke = 5, color = 'var(--a)', inner = ''}){
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r, h = size / 2;
+  const p = max > 0 ? Math.min(Math.max(value / max, 0), 1) : 0;
+  return `<div class="ring" style="width:${size}px;height:${size}px">
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="${stroke}"/>
+      <circle cx="${h}" cy="${h}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round"
+        stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}" transform="rotate(-90 ${h} ${h})"/>
+    </svg><div class="ring-in" style="color:${color}">${inner}</div></div>`;
+}
+
+const card = (html, extra = '') => `<div class="card ${extra}">${html}</div>`;
+const button = (text, {kind = 'primary', attrs = '', ic = '', block = false} = {}) =>
+  `<button class="btn ${kind}${block ? ' block' : ''}" ${attrs}>${ic ? icon(ic) : ''}${text}</button>`;
+const field = (label, {id = '', type = 'text', value = '', placeholder = '', mode = ''} = {}) =>
+  `<label class="field"><span>${label}</span><input class="input" id="${id}" type="${type}" value="${esc(value)}"
+   placeholder="${esc(placeholder)}" ${mode ? `inputmode="${mode}"` : ''} autocomplete="off"></label>`;
+const emptyState = (ic, title, text, btn = '') =>
+  `<div class="card empty"><div class="badge">${icon(ic)}</div><h2>${title}</h2><p>${text}</p>${btn}</div>`;
+
+function openModal({title = '', message = '', content = '', onOpen = null, buttons = [{text:'Закрыть', kind:'ghost', value:true}]}){
+  return new Promise(resolve => {
+    const ov = document.createElement('div');
+    ov.className = 'overlay';
+    ov.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>
+      ${title ? `<h3>${title}</h3>` : ''}${message ? `<p class="msg">${message}</p>` : ''}${content}
+      <div class="acts">${buttons.map((b, i) => `<button class="btn ${b.kind || 'ghost'}" data-i="${i}">${b.text}</button>`).join('')}</div></div>`;
+    const close = v => { document.removeEventListener('keydown', onKey); ov.remove();
+      if(!document.querySelector('.overlay')) document.body.classList.remove('lock'); resolve(v); };
+    const onKey = e => { if(e.key === 'Escape' && ov === [...document.querySelectorAll('.overlay')].pop()) close(null); };
+    ov._close = close;
+    ov.addEventListener('click', e => {
+      if(e.target === ov) return close(null);
+      const b = e.target.closest('[data-i]');
+      if(b){ const btn = buttons[+b.dataset.i];
+        Promise.resolve(btn.onClick ? btn.onClick(ov) : undefined).then(r => { if(r !== false) close(btn.value); }); }
+    });
+    document.addEventListener('keydown', onKey);
+    document.body.classList.add('lock');
+    document.body.appendChild(ov);
+    const first = ov.querySelector('input'); if(first) first.focus();
+    if(onOpen) onOpen(ov);
+  });
+}
+const confirmDialog = (message, {title = 'Подтвердите действие', ok = 'Удалить'} = {}) =>
+  openModal({title, message, buttons:[{text:'Отмена', kind:'ghost', value:false}, {text:ok, kind:'danger', value:true}]})
+    .then(v => v === true);
+
+let toastTimer;
+function toast(text){
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; document.body.appendChild(t);
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 2200);
+}
+
+/* ============ ЭКРАНЫ ============ */
+const SCREENS = {
+  home:{title:'', render:renderHome},
+  nutrition:{title:'Питание', render:renderNutrition},
+  foods:{title:'Мои продукты', render:renderFoods},
+  water:{title:'Вода', render:renderWater},
+  activity:{title:'Активность', render:renderActivity},
+  diary:{title:'Дневник', render:renderDiary},
+  calendar:{title:'Календарь', render:renderCalendar},
+  stats:{title:'Статистика', render:renderStats},
+  profile:{title:'Профиль', render:renderProfile},
+  onboarding:{title:'', render:renderOnboarding}
+};
+
+function renderHome(){
+  const now = new Date(), t = dayTotals(dateKey(now)), P = DB.profile, T = DB.targets;
+  const hr = now.getHours(), greet = hr < 5 ? 'Доброй ночи' : hr < 12 ? 'Доброе утро' : hr < 18 ? 'Добрый день' : 'Добрый вечер';
+  const date = now.toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long'});
+  const tile = (go, ic, name, val, value, max, color) =>
+    `<button class="tile" data-go="${go}">
+      ${ring({value, max, size:58, stroke:5, color, inner:icon(ic)})}
+      <div class="bottom"><div class="name">${name}</div><div class="val">${val}</div></div></button>`;
+  const row = (go, ic, name) =>
+    `<button class="row" data-go="${go}"><span class="badge">${icon(ic)}</span><span class="t">${name}</span>${icon('chev', 'ic chev')}</button>`;
+  const onboard = !P.onboardingDone
+    ? `<div class="info" style="margin-bottom:12px">Завершите настройку целей — <button style="background:none;border:0;color:var(--a);font-weight:600;padding:0;text-decoration:underline" data-act="onboard">начать</button></div>` : '';
+  return onboard + `<div class="hello"><div class="d">${date}</div><h1>${P.name ? greet + ', ' + esc(P.name) + '!' : 'Сегодня'}</h1></div>
+    <div class="tiles">
+      ${tile('nutrition', 'food', 'Питание', `<b>${eV(t.kcal)}</b> / ${eV(T.kcal)} ${eU()}`, t.kcal, T.kcal, 'var(--a)')}
+      ${tile('water', 'water', 'Вода', `<b>${wV(t.water)}</b> / ${wV(T.waterGoal)} ${wU()}`, t.water, T.waterGoal, 'var(--peach)')}
+      ${tile('activity', 'activity', 'Активность', `<b>${n0(t.steps)}</b> / ${n0(T.stepsGoal)} шагов`, t.steps, T.stepsGoal, 'var(--f-green)')}
+      ${tile('diary', 'diary', 'Дневник', t.count ? `Записей: <b>${t.count}</b>` : 'Записей пока нет', t.count, Math.max(t.count, 1), 'var(--f-purple)')}
+    </div>
+    <div class="rows">
+      ${row('calendar', 'calendar', 'Календарь')}
+      ${row('stats', 'stats', 'Статистика')}
+      ${row('profile', 'user', 'Профиль')}
+    </div>`;
+}
+
+/* ============ ПИТАНИЕ И ДНЕВНИК ============ */
+const MEALS = [{id:'breakfast',name:'Завтрак'},{id:'snack',name:'Перекус'},{id:'lunch',name:'Обед'},
+  {id:'tea',name:'Полдник'},{id:'dinner',name:'Ужин'},{id:'other',name:'Другое'}];
+const mealOf = e => MEALS.some(m => m.id === e.meal) ? e.meal : 'other';
+const guessMeal = h => h < 10 ? 'breakfast' : h < 12 ? 'snack' : h < 15 ? 'lunch' : h < 17 ? 'tea' : h < 21 ? 'dinner' : 'other';
+const num = v => { const n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) && n > 0 ? n : 0; };
+const r1 = n => Math.round(n * 10) / 10;
+const fmt = n => String(r1(Number(n) || 0)).replace('.', ',');
+const $id = (ov, id) => ov.querySelector('#' + id);
+let viewDate = dateKey();
+const keyToDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d, 12); };
+const shiftKey = (k, n) => { const d = keyToDate(k); d.setDate(d.getDate() + n); return dateKey(d); };
+function dayLabel(k){
+  const t = dateKey();
+  if(k === t) return 'Сегодня'; if(k === shiftKey(t, -1)) return 'Вчера'; if(k === shiftKey(t, 1)) return 'Завтра';
+  return keyToDate(k).toLocaleDateString('ru-RU', {weekday:'short', day:'numeric', month:'long'});
+}
+const dayNav = () => `<div class="daynav">
+  <button class="iconbtn" data-act="day" data-d="-1" aria-label="Предыдущий день">${icon('back')}</button>
+  <button class="daylbl" data-act="today">${dayLabel(viewDate)}</button>
+  <button class="iconbtn" data-act="day" data-d="1" aria-label="Следующий день">${icon('chev')}</button></div>`;
+const navRow = (to, ic, name) =>
+  `<button class="row" data-go="${to}"><span class="badge">${icon(ic)}</span><span class="t">${name}</span>${icon('chev', 'ic chev')}</button>`;
+
+const swRow = (kind, id, name, subs, right) =>
+  `<div class="sw"><button class="sw-del" data-act="del-${kind}" data-id="${id}">Удалить</button>
+   <div class="sw-in" data-act="edit-${kind}" data-id="${id}"><div class="tx"><div class="nm">${esc(name)}</div>
+   <div class="sub">${subs.map(x => `<span>${x}</span>`).join('')}</div></div>${right}
+   <button class="mini" data-act="del-${kind}" data-id="${id}" aria-label="Удалить">${icon('trash')}</button></div></div>`;
+
+function renderDiary(){
+  const list = (DB.entries[viewDate] || []).slice().sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+  const t = dayTotals(viewDate), T = DB.targets;
+  const row = e => swRow('entry', e.id, e.name,
+    [e.grams ? fmt(e.grams) + ' г' : '', `Б ${fmt(e.p)}`, `Ж ${fmt(e.f)}`, `У ${fmt(e.c)}`, e.time ? esc(e.time) : ''].filter(Boolean),
+    `<div class="kc">${eV(e.kcal)}<small>${eU()}</small></div>`);
+  const sec = m => {
+    const items = list.filter(e => mealOf(e) === m.id);
+    return `<div class="card"><div class="mh"><div><div class="mn">${m.name}</div>
+      <div class="muted">${items.length ? eV(sum(items, e => e.kcal)) + ' ' + eU() : 'Нет записей'}</div></div>
+      <button class="iconbtn" data-act="add" data-meal="${m.id}" aria-label="Добавить: ${m.name}">${icon('plus')}</button></div>
+      ${items.map(row).join('')}</div>`;
+  };
+  return dayNav() + `<div class="card sumc"><div class="big">${eV(t.kcal)} <span class="muted">из ${eV(T.kcal)} ${eU()}</span></div>
+    <div class="mac"><div><b>${Math.round(t.p)} г</b><span>белки</span></div><div><b>${Math.round(t.f)} г</b><span>жиры</span></div>
+    <div><b>${Math.round(t.c)} г</b><span>углеводы</span></div></div>
+    ${t.count ? '' : '<p class="muted" style="margin:12px 0 0">За этот день записей нет. Нажмите «+» у нужного приёма пищи.</p>'}</div>`
+    + MEALS.map(sec).join('');
+}
+
+async function entryForm(id, meal){
+  const old = id ? (DB.entries[viewDate] || []).find(x => x.id === id) : null;
+  if(id && !old) return;
+  const n = new Date();
+  const e = old || {meal:meal || guessMeal(n.getHours()), name:'', grams:'', kcal:'', p:'', f:'', c:'', time:`${pad(n.getHours())}:${pad(n.getMinutes())}`};
+  const sh = v => v === '' || v == null ? '' : fmt(v), shE = v => v === '' || v == null ? '' : dec(v * U('energy').f, 0);
+  const content = `
+    <label class="field"><span>Приём пищи</span><select class="input" id="e-meal">
+      ${MEALS.map(m => `<option value="${m.id}"${m.id === mealOf(e) ? ' selected' : ''}>${m.name}</option>`).join('')}</select></label>
+    ${button('Из моих продуктов', {kind:'soft', block:true, ic:'box', attrs:'id="e-pick" style="margin-bottom:8px"'})}
+    ${button('Из базы продуктов', {kind:'soft', block:true, ic:'search', attrs:'id="e-pick-db" style="margin-bottom:12px"'})}
+    ${field('Название', {id:'e-name', value:e.name, placeholder:'Например, овсяная каша'})}
+    <div class="grid2">${field('Граммы', {id:'e-grams', value:sh(e.grams), mode:'decimal', placeholder:'100'})}
+      ${field('Энергия, ' + eU(), {id:'e-kcal', value:shE(e.kcal), mode:'decimal', placeholder:'0'})}</div>
+    <div class="grid3">${field('Белки, г', {id:'e-p', value:sh(e.p), mode:'decimal', placeholder:'0'})}
+      ${field('Жиры, г', {id:'e-f', value:sh(e.f), mode:'decimal', placeholder:'0'})}
+      ${field('Углеводы, г', {id:'e-c', value:sh(e.c), mode:'decimal', placeholder:'0'})}</div>
+    ${field('Время', {id:'e-time', type:'time', value:e.time || ''})}
+    ${old ? '' : '<label class="chk"><input type="checkbox" id="e-save"><span>Сохранить как свой продукт (на 100 г)</span></label>'}`;
+  const val = (ov, k) => num($id(ov, k).value);
+  await openModal({
+    title: old ? 'Правка записи' : 'Новая запись', content,
+    onOpen: ov => {
+      let per = null;
+      const IDS = [['e-kcal', 'k'], ['e-p', 'p'], ['e-f', 'f'], ['e-c', 'c']];
+      const derive = () => { const g = val(ov, 'e-grams');
+        per = g > 0 ? {k:val(ov, 'e-kcal') / g, p:val(ov, 'e-p') / g, f:val(ov, 'e-f') / g, c:val(ov, 'e-c') / g} : null; };
+      const fill = () => { const g = val(ov, 'e-grams'); if(!per || !(g > 0)) return;
+        IDS.forEach(([i, k]) => { const v = per[k] * g, el = $id(ov, i);
+          if(v > 0) el.value = k === 'k' ? String(Math.round(v)) : fmt(v); else if(el.value !== '') el.value = '0'; }); };
+      if(old) derive();
+      $id(ov, 'e-grams').addEventListener('input', fill);
+      IDS.forEach(([i]) => $id(ov, i).addEventListener('input', derive));
+      $id(ov, 'e-pick').addEventListener('click', async () => {
+        const pid = await pickFood();
+        const f = DB.foods.find(x => x.id === pid); if(!f) return;
+        const d = f.per100;
+        $id(ov, 'e-name').value = f.name;
+        per = {k:d.kcal * U('energy').f / 100, p:d.p / 100, f:d.f / 100, c:d.c / 100};
+        if(!val(ov, 'e-grams')) $id(ov, 'e-grams').value = '100';
+        IDS.forEach(([i]) => { $id(ov, i).value = '1'; });
+        fill();
+        const sv = $id(ov, 'e-save'); if(sv){ sv.checked = false; sv.closest('label').style.display = 'none'; }
+        $id(ov, 'e-grams').focus(); $id(ov, 'e-grams').select();
+      });
+      $id(ov, 'e-pick-db').addEventListener('click', async () => {
+        const pid = await pickFoodFromDB();
+        if(!pid) return;
+        const f = FOODS_DB.find(x => x.id === pid);
+        if(!f) return;
+        const d = f.per100;
+        $id(ov, 'e-name').value = f.name;
+        per = {k:d.kcal * U('energy').f / 100, p:d.p / 100, f:d.f / 100, c:d.c / 100};
+        if(!val(ov, 'e-grams')) $id(ov, 'e-grams').value = '100';
+        IDS.forEach(([i]) => { $id(ov, i).value = '1'; });
+        fill();
+        const sv = $id(ov, 'e-save'); if(sv){ sv.checked = false; sv.closest('label').style.display = 'none'; }
+        $id(ov, 'e-grams').focus(); $id(ov, 'e-grams').select();
+      });
+    },
+    buttons: [
+      ...(old ? [{text:'Удалить', kind:'danger', value:'del', onClick: async () => {
+        if(!await confirmDialog(`Удалить запись «${esc(old.name)}»?`)) return false;
+        update(db => { db.entries[viewDate] = db.entries[viewDate].filter(x => x.id !== old.id);
+          if(!db.entries[viewDate].length) delete db.entries[viewDate]; });
+        toast('Запись удалена'); }}] : []),
+      {text:'Отмена', kind:'ghost', value:false},
+      {text:'Сохранить', kind:'primary', value:'ok', onClick: ov => {
+        const name = $id(ov, 'e-name').value.trim();
+        if(!name){ toast('Введите название'); $id(ov, 'e-name').focus(); return false; }
+        const g = val(ov, 'e-grams');
+        const kv = val(ov, 'e-kcal'), ke = old && $id(ov, 'e-kcal').value === shE(old.kcal) ? old.kcal : U('energy').f === 1 ? Math.round(kv) : r1(toKcal(kv));
+        const entry = {id:old ? old.id : uid(), meal:$id(ov, 'e-meal').value, name, grams:r1(g),
+          kcal:ke, p:r1(val(ov, 'e-p')), f:r1(val(ov, 'e-f')), c:r1(val(ov, 'e-c')),
+          time:$id(ov, 'e-time').value || ''};
+        const sv = $id(ov, 'e-save');
+        if(sv && sv.checked){
+          if(!(g > 0)){ toast('Чтобы сохранить продукт, укажите граммы'); return false; }
+          const per100 = {kcal:r1(entry.kcal / g * 100), p:r1(entry.p / g * 100), f:r1(entry.f / g * 100), c:r1(entry.c / g * 100)};
+          update(db => { const ex = db.foods.find(x => x.name.toLowerCase() === name.toLowerCase());
+            if(ex) ex.per100 = per100; else db.foods.push({id:uid(), name, per100}); });
+        }
+        update(db => { const l = db.entries[viewDate] || (db.entries[viewDate] = []);
+          const i = l.findIndex(x => x.id === entry.id); if(i >= 0) l[i] = entry; else l.push(entry); });
+        toast(old ? 'Запись сохранена' : 'Запись добавлена'); }}
+    ]
+  });
+  render(true);
+}
+
+async function delEntry(id){
+  const e = (DB.entries[viewDate] || []).find(x => x.id === id); if(!e) return;
+  if(!await confirmDialog(`Удалить запись «${esc(e.name)}»?`)) return;
+  update(db => { db.entries[viewDate] = db.entries[viewDate].filter(x => x.id !== id);
+    if(!db.entries[viewDate].length) delete db.entries[viewDate]; });
+  toast('Запись удалена'); render(true);
+}
+
+const foodSubs = d => [`Б ${fmt(d.p)}`, `Ж ${fmt(d.f)}`, `У ${fmt(d.c)}`];
+function foodListHTML(q, pick){
+  const s = q.trim().toLowerCase();
+  if(!DB.foods.length) return '<div class="note">Пока нет сохранённых продуктов.</div>';
+  const l = DB.foods.filter(f => f.name.toLowerCase().includes(s)).sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+  if(!l.length) return '<div class="note">Ничего не найдено.</div>';
+  return l.map(f => pick
+    ? `<button class="frow" data-pick="${f.id}"><div class="nm">${esc(f.name)}</div>
+        <div class="sub"><span>${eV(f.per100.kcal, U('energy').dp)} ${eU()}</span>${foodSubs(f.per100).map(x => `<span>${x}</span>`).join('')}</div></button>`
+    : swRow('food', f.id, f.name, foodSubs(f.per100), `<div class="kc">${eV(f.per100.kcal, U('energy').dp)}<small>${eU()} / 100 г</small></div>`)).join('');
+}
+function renderFoods(){
+  const add = a => button('Новый продукт', {kind:a, block:a === 'primary', ic:'plus', attrs:'data-act="new-food"'});
+  if(!DB.foods.length) return emptyState('box', 'Нет своих продуктов',
+    'Сохраните продукт с калориями и БЖУ на 100 г. При добавлении записи выберите его из списка — граммы пересчитаются сами.', add('soft'));
+  return `<label class="search">${icon('search')}<input class="input" id="food-q" placeholder="Поиск по названию" autocomplete="off"></label>
+    <div id="foodlist">${foodListHTML('', false)}</div><div style="margin-top:16px">${add('primary')}</div>`;
+}
+async function editFood(id){
+  const food = id ? DB.foods.find(x => x.id === id) : null;
+  const d = food ? food.per100 : {}, sh = v => v == null ? '' : fmt(v);
+  let saved = null; const ik = d.kcal == null ? '' : dec(d.kcal * U('energy').f, U('energy').dp);
+  await openModal({
+    title: food ? 'Правка продукта' : 'Новый продукт', message:'Значения на 100 г продукта',
+    content: field('Название', {id:'p-name', value:food ? food.name : '', placeholder:'Например, творог 5%'})
+      + `<div class="grid2">${field('Энергия, ' + eU(), {id:'p-kcal', value:ik, mode:'decimal', placeholder:'0'})}
+         ${field('Белки, г', {id:'p-p', value:sh(d.p), mode:'decimal', placeholder:'0'})}
+         ${field('Жиры, г', {id:'p-f', value:sh(d.f), mode:'decimal', placeholder:'0'})}
+         ${field('Углеводы, г', {id:'p-c', value:sh(d.c), mode:'decimal', placeholder:'0'})}</div>`,
+    buttons: [
+      ...(food ? [{text:'Удалить', kind:'danger', value:'del', onClick: async () => {
+        if(!await confirmDialog(`Удалить продукт «${esc(food.name)}»? Прошлые записи не изменятся.`)) return false;
+        update(db => { db.foods = db.foods.filter(x => x.id !== food.id); }); toast('Продукт удалён'); }}] : []),
+      {text:'Отмена', kind:'ghost', value:false},
+      {text:'Сохранить', kind:'primary', value:'ok', onClick: ov => {
+        const name = $id(ov, 'p-name').value.trim();
+        if(!name){ toast('Введите название'); $id(ov, 'p-name').focus(); return false; }
+        const per100 = {kcal:food && $id(ov, 'p-kcal').value === ik ? food.per100.kcal : r1(toKcal(num($id(ov, 'p-kcal').value))), p:r1(num($id(ov, 'p-p').value)),
+          f:r1(num($id(ov, 'p-f').value)), c:r1(num($id(ov, 'p-c').value))};
+        update(db => { if(food){ const x = db.foods.find(y => y.id === food.id); if(x){ x.name = name; x.per100 = per100; } saved = food.id; }
+          else { const nf = {id:uid(), name, per100}; db.foods.push(nf); saved = nf.id; } });
+        toast('Продукт сохранён'); }}
+    ]
+  });
+  return saved;
+}
+async function delFood(id){
+  const f = DB.foods.find(x => x.id === id); if(!f) return;
+  if(!await confirmDialog(`Удалить продукт «${esc(f.name)}»? Прошлые записи не изменятся.`)) return;
+  update(db => { db.foods = db.foods.filter(x => x.id !== id); });
+  toast('Продукт удалён'); render(true);
+}
+function pickFood(){
+  return openModal({
+    title:'Мои продукты', message:'Значения указаны на 100 г',
+    content:`<label class="search">${icon('search')}<input class="input" id="pk-q" placeholder="Поиск по названию" autocomplete="off"></label>
+      <div id="pk-list">${foodListHTML('', true)}</div>`,
+    onOpen: ov => {
+      const refresh = () => { $id(ov, 'pk-list').innerHTML = foodListHTML($id(ov, 'pk-q').value, true); };
+      $id(ov, 'pk-q').addEventListener('input', refresh);
+      ov.addEventListener('click', e => { const b = e.target.closest('[data-pick]'); if(b) ov._close(b.dataset.pick); });
+      ov._refresh = refresh;
+    },
+    buttons:[
+      {text:'Новый продукт', kind:'soft', value:null, onClick: async ov => {
+        const id = await editFood(); if(id) ov._close(id); else ov._refresh(); return false; }},
+      {text:'Закрыть', kind:'ghost', value:null}
+    ]
+  });
+}
+
+function pickFoodFromDB(){
+  if(!FOODS_DB.length){
+    return openModal({
+      title:'База не загружена',
+      message:'Откройте «Профиль» → «База продуктов» и загрузите JSON-файл.',
+      buttons:[{text:'Понятно', kind:'ghost', value:null}]
+    });
+  }
+  return openModal({
+    title:'База продуктов',
+    message:'Значения указаны на 100 г',
+    content:`
+      <label class="search">${icon('search')}
+        <input class="input" id="db-q" placeholder="рис, курица, тофу…" autocomplete="off">
+      </label>
+      <div class="chips" id="db-cats" style="margin-bottom:10px">
+        <button class="chip last" data-cat="all">Все</button>
+        ${FOOD_CATEGORIES.map(c => `<button class="chip" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
+      </div>
+      <div id="db-list" style="max-height:52vh;overflow:auto"></div>`,
+    onOpen: ov => {
+      let activeCat = 'all';
+      const paintCats = () => {
+        ov.querySelectorAll('#db-cats [data-cat]').forEach(b =>
+          b.classList.toggle('last', b.dataset.cat === activeCat));
+      };
+      const refresh = () => {
+        const q = ov.querySelector('#db-q').value;
+        const list = searchFoodsDB(q, { category: activeCat });
+        const box = ov.querySelector('#db-list');
+        if(!list.length){ box.innerHTML = '<div class="note">Ничего не найдено.</div>'; return; }
+        box.innerHTML = list.map(f => `
+          <button class="frow" data-pick="${f.id}">
+            <div class="nm">${esc(f.name)}</div>
+            <div class="sub">
+              ${f._cat ? `<span>${esc(f._cat)}</span>` : ''}
+              <span>${eV(f.per100.kcal, U('energy').dp)} ${eU()} / 100 г</span>
+              <span>Б ${fmt(f.per100.p)}</span>
+              <span>Ж ${fmt(f.per100.f)}</span>
+              <span>У ${fmt(f.per100.c)}</span>
+            </div>
+          </button>`).join('');
+      };
+      ov.querySelector('#db-q').addEventListener('input', refresh);
+      ov.querySelector('#db-cats').addEventListener('click', e => {
+        const b = e.target.closest('[data-cat]'); if(!b) return;
+        activeCat = b.dataset.cat; paintCats(); refresh();
+      });
+      ov.addEventListener('click', e => {
+        const p = e.target.closest('[data-pick]');
+        if(p) ov._close(p.dataset.pick);
+      });
+      paintCats(); refresh();
+    },
+    buttons:[{text:'Закрыть', kind:'ghost', value:null}]
+  });
+}
+
+const MAC = [{k:'p', name:'Белки', g:'protein', col:'var(--a)'}, {k:'f', name:'Жиры', g:'fat', col:'var(--peach)'}, {k:'c', name:'Углеводы', g:'carb', col:'var(--f-blue)'}];
+function renderNutrition(){
+  const t = dayTotals(viewDate), T = DB.targets, left = T.kcal - t.kcal, over = T.kcal > 0 && left < 0;
+  const big = ring({value:t.kcal, max:T.kcal, size:208, stroke:14, color:over ? 'var(--danger)' : 'var(--a)',
+    inner:`<div class="rc"><b>${eV(t.kcal)}</b><span>из ${eV(T.kcal)} ${eU()}</span>
+      <em>${over ? 'перебор ' + eV(-left) : 'осталось ' + eV(left)}</em></div>`});
+  const macro = m => { const v = t[m.k], goal = T[m.g], pc = goal > 0 ? Math.min(v / goal * 100, 100) : 0;
+    return `<button class="macro" data-act="detail" data-k="${m.k}"><div class="mt"><span>${m.name}</span>
+      <span><b>${Math.round(v)} г</b> / ${goal} г</span></div>
+      <div class="bar"><i style="width:${pc.toFixed(1)}%;background:${goal > 0 && v > goal ? 'var(--danger)' : m.col}"></i></div></button>`; };
+  return dayNav() + `<div class="card"><button class="ringbtn" data-act="detail" data-k="kcal" aria-label="Подробности по калориям">${big}</button>
+      ${t.count ? '' : '<p class="muted" style="text-align:center;margin:12px 0 0">За этот день записей нет.</p>'}</div>
+    <div class="card">${MAC.map(macro).join('')}</div>
+    <div style="margin-top:12px">${button('Добавить запись', {kind:'primary', block:true, ic:'plus', attrs:'data-act="add"'})}</div>
+    <div class="rows">${navRow('diary', 'diary', 'Дневник')}${navRow('foods', 'box', 'Мои продукты')}</div>`;
+}
+function detail(k){
+  const meta = {kcal:{n:'Калории', u:eU(), g:'kcal'}, p:{n:'Белки', u:'г', g:'protein'}, f:{n:'Жиры', u:'г', g:'fat'}, c:{n:'Углеводы', u:'г', g:'carb'}}[k];
+  const list = DB.entries[viewDate] || [], t = dayTotals(viewDate), goal = Number(DB.targets[meta.g]) || 0, v = t[k];
+  const F = x => k === 'kcal' ? eV(x, U('energy').dp) : fmt(x);
+  const kv = (a, b) => `<div class="kv"><span>${a}</span><b>${b}</b></div>`;
+  let h = kv('Съедено', `${F(v)} ${meta.u}`) + kv('Цель', goal ? `${F(goal)} ${meta.u}` : 'не задана');
+  if(goal){ const d = goal - v;
+    h += kv(d >= 0 ? 'Осталось' : 'Превышение', `${F(Math.abs(d))} ${meta.u}`) + kv('Выполнено', Math.round(v / goal * 100) + '%'); }
+  if(k !== 'kcal'){ const tot = t.p * 4 + t.f * 9 + t.c * 4;
+    if(tot > 0) h += kv('Доля в калориях рациона', Math.round(v * ({p:4, f:9, c:4}[k]) / tot * 100) + '%'); }
+  if(list.length){
+    const byMeal = MEALS.map(m => [m.name, sum(list.filter(e => mealOf(e) === m.id), e => e[k])]).filter(x => x[1] > 0);
+    if(byMeal.length) h += '<h4>По приёмам пищи</h4>' + byMeal.map(x => kv(x[0], `${F(x[1])} ${meta.u}`)).join('');
+    const top = list.filter(e => e[k] > 0).sort((a, b) => b[k] - a[k]).slice(0, 3);
+    if(top.length) h += '<h4>Больше всего даёт</h4>' + top.map(e => kv(esc(e.name), `${F(e[k])} ${meta.u}`)).join('');
+  }else h += '<p class="msg" style="margin-top:14px">Записей за этот день нет.</p>';
+  openModal({title:meta.n, message:dayLabel(viewDate), content:h, buttons:[{text:'Закрыть', kind:'ghost', value:true}]});
+}
+
+/* ============ ВОДА И АКТИВНОСТЬ ============ */
+const n0 = n => Math.round(Number(n) || 0).toLocaleString('ru-RU');
+const waterList = k => Array.isArray(DB.water[k]) ? DB.water[k] : [];
+const goalRow = (act, label, val) => `<button class="goalrow" data-act="${act}"><span>${label}</span><b>${val}</b>${icon('edit')}</button>`;
+const bigRing = (v, goal, unit, color, f = n0) => {
+  const left = goal - v, pc = goal > 0 ? Math.round(v / goal * 100) : 0;
+  return `<div style="text-align:center;margin:4px 0 14px">${ring({value:v, max:goal, size:208, stroke:14, color,
+    inner:`<div class="rc"><b>${f(v)}</b><span>из ${f(goal)} ${unit}</span><em>${left > 0 ? 'осталось ' + f(left) : 'цель выполнена'} · ${pc}%</em></div>`})}</div>`;
+};
+
+function renderWater(){
+  const l = waterList(dateKey()), t = sum(l, x => x), T = DB.targets;
+  const quick = U('water').quick.map(ml => button('+' + wV(ml) + ' ' + wU(), {kind:'soft', attrs:`data-act="w-add" data-ml="${ml}"`})).join('');
+  return card(bigRing(t, T.waterGoal, wU(), 'var(--peach)', wV) + goalRow('w-goal', 'Цель на день', wV(T.waterGoal) + ' ' + wU()))
+    + card(`<h2 class="card-title">Добавить воду</h2><div class="grid3" style="margin:12px 0">${quick}</div>
+      <div class="inl"><input class="input" id="w-manual" inputmode="numeric" placeholder="Своё количество, ${wU()}" autocomplete="off" aria-label="Количество воды, ${wU()}">
+      ${button('Добавить', {kind:'primary', attrs:'data-act="w-manual"'})}</div>`)
+    + card(`<h2 class="card-title">Записи за сегодня</h2>` + (l.length
+      ? `<div class="chips">${l.map((x, i) => `<span class="chip${i === l.length - 1 ? ' last' : ''}">${wV(x)} ${wU()}</span>`).join('')}</div>
+         <div style="margin-top:14px">${button('Удалить последнюю запись', {kind:'ghost', block:true, ic:'undo', attrs:'data-act="w-undo"'})}</div>`
+      : '<p class="note" style="padding:12px 0 4px">Сегодня воды ещё не записано. Нажмите «+250 мл» после первого стакана.</p>'));
+}
+function addWater(ml){
+  ml = Math.round(ml);
+  if(!(ml > 0)){ toast(`Введите количество воды, ${wU()}`); return false; }
+  if(ml > 5000){ toast(`За один раз — не больше ${wV(5000)} ${wU()}`); return false; }
+  const k = dateKey(), before = sum(waterList(k), x => x), goal = DB.targets.waterGoal;
+  update(db => { if(!Array.isArray(db.water[k])) db.water[k] = []; db.water[k].push(ml); });
+  toast(goal > 0 && before < goal && before + ml >= goal ? 'Цель по воде выполнена!' : `+${wV(ml)} ${wU()}`);
+  render(true); return true;
+}
+async function undoWater(){
+  const k = dateKey(), l = waterList(k); if(!l.length) return;
+  if(!await confirmDialog(`Удалить последнюю запись воды: ${wV(l[l.length - 1])} ${wU()}?`)) return;
+  update(db => { db.water[k].pop(); if(!db.water[k].length) delete db.water[k]; });
+  toast('Запись удалена'); render(true);
+}
+const GOALS = [
+  {key:'kcal', name:'Калории', kind:'energy', min:500, max:10000},
+  {key:'protein', name:'Белки', unit:'г', min:10, max:500},
+  {key:'fat', name:'Жиры', unit:'г', min:10, max:400},
+  {key:'carb', name:'Углеводы', unit:'г', min:10, max:1000},
+  {key:'waterGoal', name:'Вода', kind:'water', min:500, max:10000},
+  {key:'stepsGoal', name:'Шаги', unit:'шагов', min:1000, max:100000}
+];
+const gUnit = g => g.kind === 'energy' ? eU() : g.kind === 'water' ? wU() : g.unit;
+const gShow = (g, v) => !(v > 0) ? 'не задана' : (g.kind === 'energy' ? eV(v) : g.kind === 'water' ? wV(v) : n0(v)) + ' ' + gUnit(g);
+const gIn = (g, v) => g.kind === 'energy' ? dec(v * U('energy').f, 0) : g.kind === 'water' ? dec(v * U('water').f, U('water').d) : String(v);
+const gBase = (g, x) => Math.round(g.kind === 'energy' ? toKcal(x) : g.kind === 'water' ? toMl(x) : x);
+async function editGoal(key){
+  const g = GOALS.find(x => x.key === key), lo = gShow(g, g.min), hi = gShow(g, g.max);
+  const ok = await openModal({title:'Цель: ' + g.name.toLowerCase(), message:`Допустимо от ${lo} до ${hi}`,
+    content:field(`Цель на день, ${gUnit(g)}`, {id:'g-val', value:gIn(g, DB.targets[key]), mode:'decimal'}),
+    buttons:[{text:'Отмена', kind:'ghost', value:false},
+      {text:'Сохранить', kind:'primary', value:true, onClick: ov => {
+        const x = num($id(ov, 'g-val').value), v = gBase(g, x);
+        if(!x || v < g.min || v > g.max){ toast(`Введите число от ${lo} до ${hi}`); return false; }
+        update(db => { db.targets[key] = v; db.targets.source = 'manual'; }); toast('Цель сохранена'); }}]});
+  if(ok) render(true);
+}
+
+function weekChart(goal){
+  const today = dateKey(), days = [-6, -5, -4, -3, -2, -1, 0].map(d => shiftKey(today, d));
+  const vals = days.map(k => Number(DB.steps[k]) || 0), head = '<h2 class="card-title">Последние 7 дней</h2>';
+  if(!vals.some(v => v > 0)) return head + '<p class="note" style="padding:12px 0 4px">За неделю шагов пока нет. Введите шаги за сегодня — здесь появятся столбики.</p>';
+  const max = Math.max(goal, ...vals), cmp = v => v >= 1000 ? fmt(v / 1000) + 'к' : String(v);
+  const data = vals.filter(v => v > 0), avg = sum(data, x => x) / data.length;
+  return head + `<p class="muted" style="margin:0 0 14px">В среднем за дни с данными: <b style="color:var(--tx)">${n0(avg)}</b> · пунктир — цель</p>
+    <div class="bars" role="img" aria-label="Шаги за последние 7 дней">${goal > 0 ? `<div class="gl" style="bottom:${(goal / max * 100).toFixed(1)}%"></div>` : ''}
+    ${vals.map(v => `<div class="b"><i class="${goal > 0 && v >= goal ? 'hit' : ''}" style="height:${(v / max * 100).toFixed(1)}%"></i></div>`).join('')}</div>
+    <div class="lbls">${days.map((k, i) => `<div class="${k === today ? 'tod' : ''}"><b>${vals[i] ? cmp(vals[i]) : '—'}</b>${keyToDate(k).toLocaleDateString('ru-RU', {weekday:'short'})}</div>`).join('')}</div>`;
+}
+function renderActivity(){
+  const v = Number(DB.steps[dateKey()]) || 0, T = DB.targets;
+  return card(bigRing(v, T.stepsGoal, 'шагов', 'var(--f-green)') + goalRow('s-goal', 'Цель на день', n0(T.stepsGoal) + ' шагов'))
+    + card(`<h2 class="card-title">Шаги за сегодня</h2><div style="margin-top:12px">
+      ${field('Всего шагов за день', {id:'s-val', value:v > 0 ? String(v) : '', mode:'numeric', placeholder:'Например, 6500'})}</div>
+      ${button('Сохранить', {kind:'primary', block:true, attrs:'data-act="s-save"'})}
+      ${v > 0 ? `<div style="margin-top:10px">${button('Сбросить за сегодня', {kind:'danger', block:true, attrs:'data-act="s-reset"'})}</div>` : ''}`)
+    + card(weekChart(T.stepsGoal));
+}
+function saveSteps(){
+  const el = document.getElementById('s-val'); if(!el) return;
+  const v = Math.round(num(el.value));
+  if(!(v > 0)){ toast('Введите число шагов больше 0'); el.focus(); return; }
+  if(v > 100000){ toast('Слишком много: максимум 100 000 шагов'); el.focus(); return; }
+  const k = dateKey(), goal = DB.targets.stepsGoal, before = Number(DB.steps[k]) || 0;
+  update(db => { db.steps[k] = v; });
+  toast(goal > 0 && before < goal && v >= goal ? 'Цель по шагам выполнена!' : 'Шаги сохранены'); render(true);
+}
+async function resetSteps(){
+  const k = dateKey(), v = Number(DB.steps[k]) || 0; if(!v) return;
+  if(!await confirmDialog(`Сбросить шаги за сегодня (${n0(v)})?`, {ok:'Сбросить'})) return;
+  update(db => { delete db.steps[k]; }); toast('Шаги сброшены'); render(true);
+}
+
+/* ============ КАЛЕНДАРЬ ============ */
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const WDAYS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+let calSel = dateKey();
+const hasData = k => (Array.isArray(DB.entries[k]) && DB.entries[k].length > 0) || waterList(k).length > 0 || (Number(DB.steps[k]) || 0) > 0;
+const longDate = k => keyToDate(k).toLocaleDateString('ru-RU', {day:'numeric', month:'long'});
+
+function calMove(dm){
+  const [y, m, d] = calSel.split('-').map(Number);
+  const t = new Date(y, m - 1 + dm, 1, 12), dim = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+  calSel = dateKey(new Date(t.getFullYear(), t.getMonth(), Math.min(d, dim), 12));
+  render(true);
+}
+
+function calSummary(k){
+  const t = dayTotals(k), T = DB.targets, today = dateKey();
+  if(!hasData(k)) return emptyState('calendar', 'Нет данных за этот день',
+    `За ${longDate(k)} нет записей питания, воды и шагов.`,
+    button('Добавить в дневник', {kind:'soft', ic:'plus', attrs:'data-act="cal-diary"'}));
+  const list = (Array.isArray(DB.entries[k]) ? DB.entries[k] : []).slice().sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+  const head = keyToDate(k).toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long'});
+  const tag = k === today ? 'Сегодня' : k === shiftKey(today, -1) ? 'Вчера' : '';
+  const meals = MEALS.map(m => {
+    const items = list.filter(e => mealOf(e) === m.id); if(!items.length) return '';
+    return `<div class="cm"><div class="cm-h"><span>${m.name}</span><span>${eV(sum(items, e => e.kcal))} ${eU()}</span></div>
+      ${items.map(e => `<div class="li"><span>${esc(e.name)}${e.grams ? ' · ' + fmt(e.grams) + ' г' : ''}</span><span>${eV(e.kcal)} ${eU()}</span></div>`).join('')}</div>`;
+  }).join('');
+  const nutrition = list.length
+    ? `<div class="sumc"><div class="big">${eV(t.kcal)} <span class="muted">из ${eV(T.kcal)} ${eU()}</span></div>
+        <div class="mac"><div><b>${Math.round(t.p)} / ${T.protein} г</b><span>белки</span></div>
+        <div><b>${Math.round(t.f)} / ${T.fat} г</b><span>жиры</span></div>
+        <div><b>${Math.round(t.c)} / ${T.carb} г</b><span>углеводы</span></div></div></div>
+        <div style="margin-top:12px">${meals}</div>`
+    : '<p class="note" style="padding:8px 0 0">Приёмов пищи за этот день не записано.</p>';
+  const prog = (name, v, goal, unit, f = n0) => {
+    const pc = goal > 0 ? Math.min(v / goal * 100, 100) : 0;
+    return `<div class="pm"><div class="mt"><span>${name}</span><span><b>${f(v)}</b> / ${f(goal)} ${unit}</span></div>
+      <div class="bar"><i style="width:${pc.toFixed(1)}%;background:var(--a)"></i></div></div>`;
+  };
+  return card(`<div class="sth"><h2 class="card-title cap">${head}</h2>${tag ? `<span class="muted">${tag}</span>` : ''}</div>
+      <div style="margin-top:10px">${nutrition}</div>`)
+    + card(`<h2 class="card-title" style="margin-bottom:12px">Вода и шаги</h2>
+      ${prog('Вода', t.water, T.waterGoal, wU(), wV)}${prog('Шаги', t.steps, T.stepsGoal, 'шагов')}`)
+    + `<div style="margin-top:12px">${button('Открыть в дневнике', {kind:'soft', block:true, ic:'diary', attrs:'data-act="cal-diary"'})}</div>`;
+}
+
+function renderCalendar(){
+  const [y, m] = calSel.split('-').map(Number), today = dateKey();
+  const off = (new Date(y, m - 1, 1, 12).getDay() + 6) % 7, dim = new Date(y, m, 0).getDate();
+  let cells = '<span></span>'.repeat(off);
+  for(let d = 1; d <= dim; d++){
+    const k = `${y}-${pad(m)}-${pad(d)}`, has = hasData(k);
+    cells += `<button class="cd${k === calSel ? ' sel' : ''}${k === today ? ' tod' : ''}${has ? ' dot' : ''}" data-act="cal-pick" data-k="${k}"
+      aria-pressed="${k === calSel}" aria-label="${longDate(k)}${has ? ', есть данные' : ''}">${d}</button>`;
+  }
+  return `<div class="daynav">
+      <button class="iconbtn" data-act="cal-prev" aria-label="Предыдущий месяц">${icon('back')}</button>
+      <button class="daylbl" data-act="cal-today" aria-label="Перейти к сегодняшнему дню">${MONTHS[m - 1]} ${y}</button>
+      <button class="iconbtn" data-act="cal-next" aria-label="Следующий месяц">${icon('chev')}</button></div>`
+    + card(`<div class="wd">${WDAYS.map(x => `<span>${x}</span>`).join('')}</div><div class="cg">${cells}</div>`)
+    + calSummary(calSel);
+}
+
+/* ============ СТАТИСТИКА ============ */
+let stRange = 7;
+const STATS = [
+  {name:'Калории',  kind:'energy', goal:'kcal',      get:t => t.kcal,  has:t => t.count > 0, nut:true},
+  {name:'Белки',    unit:'г',     goal:'protein',   get:t => t.p,     has:t => t.count > 0, nut:true},
+  {name:'Жиры',     unit:'г',     goal:'fat',       get:t => t.f,     has:t => t.count > 0, nut:true},
+  {name:'Углеводы', unit:'г',     goal:'carb',      get:t => t.c,     has:t => t.count > 0, nut:true},
+  {name:'Вода',     kind:'water', goal:'waterGoal', get:t => t.water, has:t => t.water > 0, nut:false},
+  {name:'Шаги',     unit:'шагов', goal:'stepsGoal', get:t => t.steps, has:t => t.steps > 0, nut:false}
+];
+function niceMax(v){
+  if(!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p;
+  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p;
+}
+const axisNum = v => v >= 1000 ? fmt(v / 1000) + 'к' : String(r1(v)).replace('.', ',');
+
+function barChartSVG(days, vals, goal, nut, label){
+  const n = vals.length, W = 320, H = 150, pl = 36, pr = 14, pt = 10, pb = 24, pw = W - pl - pr, ph = H - pt - pb;
+  const max = niceMax(Math.max(goal, ...vals)), y = v => pt + ph - (v / max) * ph;
+  const slot = pw / n, bw = Math.max(1.6, slot * (n <= 7 ? .56 : .72)), step = n <= 7 ? 1 : n <= 30 ? 6 : 15;
+  let g = '';
+  [0, .5, 1].forEach(f => {
+    const yy = y(max * f).toFixed(1);
+    g += `<line x1="${pl}" x2="${W - pr}" y1="${yy}" y2="${yy}" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
+      <text x="${pl - 6}" y="${yy}" dy=".35em" text-anchor="end" font-size="10" fill="#8E8E93">${axisNum(max * f)}</text>`;
+  });
+  vals.forEach((v, i) => {
+    const cx = pl + slot * i + slot / 2;
+    if(v > 0){
+      const h = Math.max(v / max * ph, 2), col = nut ? (goal > 0 && v > goal ? 'var(--f-red)' : 'var(--a)')
+        : (goal > 0 && v >= goal ? 'var(--a)' : 'rgba(255,123,84,.4)');
+      g += `<rect x="${(cx - bw / 2).toFixed(2)}" y="${(pt + ph - h).toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}"
+        rx="${Math.min(3, bw / 2).toFixed(2)}" fill="${col}"><title>${keyToDate(days[i]).toLocaleDateString('ru-RU', {day:'numeric', month:'long'})}: ${axisNum(v)}</title></rect>`;
+    }
+    if((n - 1 - i) % step === 0){
+      const txt = n <= 7 ? keyToDate(days[i]).toLocaleDateString('ru-RU', {weekday:'short'})
+        : days[i].slice(8) + '.' + days[i].slice(5, 7);
+      g += `<text x="${cx.toFixed(1)}" y="${H - 7}" text-anchor="middle" font-size="10" fill="${i === n - 1 ? 'var(--a)' : '#8E8E93'}">${txt}</text>`;
+    }
+  });
+  if(goal > 0) g += `<line x1="${pl}" x2="${W - pr}" y1="${y(goal).toFixed(1)}" y2="${y(goal).toFixed(1)}" stroke="var(--a)" stroke-width="1.2" stroke-dasharray="4 3" opacity=".8"/>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">${g}</svg>`;
+}
+
+function statCard(m, days, tots){
+  const ku = m.kind ? U(m.kind) : null, fc = ku ? ku.f : 1, unit = ku ? ku.label : m.unit, dd = ku ? ku.d : 0;
+  const vals = tots.map(m.get).map(v => v * fc), idx = tots.map(m.has), n = days.length;
+  const k = idx.filter(Boolean).length, goal = (Number(DB.targets[m.goal]) || 0) * fc;
+  const avg = k ? sum(vals.filter((v, i) => idx[i]), x => x) / k : 0;
+  const head = `<div class="sth"><h2 class="card-title">${m.name}</h2>${k ? `<div class="sta"><b>${fnum(avg, dd)}</b> <span>${unit} / день</span></div>` : ''}</div>`;
+  if(!k) return card(head + '<p class="note" style="padding:12px 0 4px">За этот период данных нет.</p>');
+  const label = `${m.name} за ${n} дн.: в среднем ${fnum(avg, dd)} ${unit}, дней с данными ${k} из ${n}`;
+  return card(head + `<p class="muted" style="margin:2px 0 0">Среднее за дни с данными · ${k} из ${n} дн.</p>`
+    + barChartSVG(days, vals.map((v, i) => idx[i] ? v : 0), goal, m.nut, label)
+    + `<p class="lg">${goal > 0 ? `Пунктир — цель ${fnum(goal, dd)} ${unit}` : 'Цель не задана'} · ${m.nut ? 'красные столбики — выше цели' : 'яркие столбики — цель выполнена'}</p>`);
+}
+
+function renderStats(){
+  const n = stRange, today = dateKey(), days = [];
+  for(let i = n - 1; i >= 0; i--) days.push(shiftKey(today, -i));
+  const tots = days.map(dayTotals), filled = tots.filter(t => t.count > 0 || t.water > 0 || t.steps > 0).length;
+  const seg = `<div class="seg" role="group" aria-label="Период">${[7, 30, 90].map(r =>
+    `<button class="${r === n ? 'on' : ''}" aria-pressed="${r === n}" data-act="st-range" data-n="${r}">${r} дн.</button>`).join('')}</div>`;
+  if(!filled) return seg + '<div style="height:12px"></div>' + emptyState('stats', 'Данных за период нет',
+    `За последние ${n} дн. нет записей питания, воды и шагов. Добавьте их — здесь появятся графики.`,
+    button('Добавить запись', {kind:'soft', ic:'plus', attrs:'data-act="st-add"'}));
+  const short = d => keyToDate(d).toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
+  return seg + `<p class="muted" style="margin:10px 4px 12px">${short(days[0])} – ${short(days[n - 1])} · дней с данными: ${filled} из ${n}</p>`
+    + STATS.map(m => statCard(m, days, tots)).join('');
+}
+
+/* ============ ОНБОРДИНГ ============ */
+let onb = null;
+function onbStart(){
+  onb = {step:1, name:DB.profile.name || '', age:'', sex:'', height:'', weight:'', activity:null, type:'maintain',
+    targetKg:'', months:6, calc:null, manual:false};
+  if(DB.profile.onboardingDone){
+    onb.age = DB.profile.age ?? '';
+    onb.sex = DB.profile.sex || '';
+    onb.height = DB.profile.heightCm ?? '';
+    onb.weight = DB.profile.weightKg ?? '';
+    onb.activity = DB.profile.activity;
+    onb.type = DB.goal.type || 'maintain';
+    onb.targetKg = DB.goal.targetKg ?? '';
+    if(DB.goal.targetDate) onb.months = Math.max(1, Math.min(12, Math.round(weeksBetween(dateKey(), DB.goal.targetDate) / 4.345)));
+  }
+}
+
+function renderOnboarding(){
+  const o = onb;
+  if(!o) return '';
+  const st = o.step, ind = n => `<div class="steps">${[1,2,3,4,5].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</div>`;
+  const nav = (back = true, next = true, nextLabel = 'Далее') => `<div class="grid2" style="margin-top:16px">
+      ${back ? button('Назад', {kind:'ghost', attrs:'data-act="onb-back"'}) : '<span></span>'}
+      ${next ? button(nextLabel, {kind:'primary', attrs:'data-act="onb-next"'}) : '<span></span>'}</div>`;
+  if(st === 1){
+    return ind(1) + `<h2 class="card-title" style="font-size:24px;margin-bottom:8px">Добро пожаловать</h2>
+      <p class="muted">Данные хранятся только на этом устройстве. Ничего не отправляется в интернет.</p>
+      ${field('Имя (необязательно)', {id:'o-name', value:o.name, placeholder:'Как к вам обращаться'})}
+      ${nav(false)}`;
+  }
+  if(st === 2){
+    const err = o.err2 ? `<div class="err">${o.err2}</div>` : '';
+    return ind(2) + `<h2 class="card-title" style="font-size:20px">Основные данные</h2>
+      <p class="muted" style="margin:0 0 12px">Возраст, пол, рост и вес нужны для расчёта ориентиров.</p>
+      <div class="grid2">${field('Возраст, лет', {id:'o-age', value:o.age, mode:'numeric', placeholder:'25'})}
+      ${field('Рост, см', {id:'o-height', value:o.height, mode:'numeric', placeholder:'175'})}
+      ${field('Вес, кг', {id:'o-weight', value:o.weight, mode:'decimal', placeholder:'65'})}</div>
+      <div class="sub-h">Пол</div><div class="sex">
+        <button class="${o.sex === 'm' ? 'on' : ''}" data-act="onb-sex" data-v="m">Мужской</button>
+        <button class="${o.sex === 'f' ? 'on' : ''}" data-act="onb-sex" data-v="f">Женский</button>
+        <button class="${o.sex === '' ? 'on' : ''}" data-act="onb-sex" data-v="">Не указывать</button></div>${err}
+      ${nav(true, true, 'Далее')}
+      <div style="margin-top:10px">${button('Пропустить и ввести цели вручную', {kind:'ghost', block:true, attrs:'data-act="onb-skip"'})}</div>`;
+  }
+  if(st === 3){
+    return ind(3) + `<h2 class="card-title" style="font-size:20px">Уровень активности</h2>
+      <p class="muted" style="margin:0 0 8px">Выберите, что лучше всего описывает ваш день.</p>
+      <div class="act">${ACTIVITIES.map(a => `<button class="${o.activity === a.v ? 'on' : ''}" data-act="onb-act" data-v="${a.v}">
+        <div class="r"><b>${a.name}</b><span>${a.note}</span></div><span class="k">×${String(a.v).replace('.', ',')}</span></button>`).join('')}</div>
+      ${nav(true, true, 'Далее')}`;
+  }
+  if(st === 4){
+    const needTarget = o.type !== 'maintain';
+    return ind(4) + `<h2 class="card-title" style="font-size:20px">Цель</h2>
+      <div class="act" style="margin-bottom:12px">
+        <button class="${o.type === 'lose' ? 'on' : ''}" data-act="onb-type" data-v="lose"><div class="r"><b>Снизить вес</b></div></button>
+        <button class="${o.type === 'gain' ? 'on' : ''}" data-act="onb-type" data-v="gain"><div class="r"><b>Набрать вес</b></div></button>
+        <button class="${o.type === 'maintain' ? 'on' : ''}" data-act="onb-type" data-v="maintain"><div class="r"><b>Поддерживать</b></div></button>
+      </div>
+      ${needTarget ? `<div class="grid2">${field('Целевой вес, кг', {id:'o-tkg', value:o.targetKg, mode:'decimal', placeholder:'70'})}
+        ${field('Срок, месяцев (1–12)', {id:'o-months', value:String(o.months), mode:'numeric', placeholder:'6'})}</div>` : ''}
+      <div class="grid2" style="margin-top:16px">
+        <button class="btn ghost" data-act="onb-back">Назад</button>
+        <button class="btn primary" id="onb-next4" data-act="onb-next">Далее</button></div>`;
+  }
+  if(st === 5){
+    if(!o.calc) return '';
+    const c = o.calc;
+    const rows = [['Калории', eV(c.kcal), eU()], ['Белки', c.protein, 'г'], ['Жиры', c.fat, 'г'], ['Углеводы', c.carb, 'г'],
+      ['Вода', wV(c.water), wU()], ['Шаги', n0(c.steps), 'шагов']];
+    const flds = [['kcal','Калории, ' + eU(), gIn(GOALS[0], c.kcal)], ['protein','Белки, г', c.protein],
+      ['fat','Жиры, г', c.fat], ['carb','Углеводы, г', c.carb], ['waterGoal','Вода, ' + wU(), dec(c.water * U('water').f, U('water').d)],
+      ['stepsGoal','Шаги', c.steps]];
+    const warn = c.warnings.map(w => `<div class="warn">${w}</div>`).join('');
+    const notes = c.notes.map(w => `<div class="info">${w}</div>`).join('');
+    return ind(5) + `<h2 class="card-title" style="font-size:20px">Ваш ориентир</h2>
+      ${warn}${notes}
+      ${o.manual
+        ? `<div class="card" style="background:rgba(0,0,0,0.3);border-color:var(--glass-border)"><p class="muted" style="margin:0 0 10px">Все значения можно изменить.</p>
+           ${flds.map(([id, label, val]) => field(label, {id:'m-' + id, value:String(val), mode:'decimal'})).join('')}</div>`
+        : `<div class="tgt">${rows.map(([a, b, u]) => `<div class="row2"><span>${a}</span><b>${b} ${u}</b></div>`).join('')}</div>
+           <p class="muted" style="margin:4px 0 10px">Ориентир, не предписание. Его можно изменить в любой момент.</p>
+           <div class="info">${o.type !== 'maintain' && c.actualRate !== 0
+             ? `Темп ≈ ${dec(Math.abs(c.actualRate), 2)} кг в неделю, цель примерно к ${formatDateRu(c.targetDateReal || c.targetDate)}.`
+             : (c.bmrAvg ? 'Расчёт усреднён, потому что пол не указан.' : 'Поддержание текущего веса.')}</div>
+           <details class="how2"><summary>Как это посчитано</summary>
+             <div class="kv"><span>BMR (основной обмен)</span><b>${Math.round(c.bmr)} ккал</b></div>
+             <div class="kv"><span>TDEE (с активностью)</span><b>${Math.round(c.tdee)} ккал</b></div>
+             <div class="kv"><span>${o.type === 'lose' ? 'Дефицит' : o.type === 'gain' ? 'Добавка' : 'Без изменений'}</span><b>${o.type === 'maintain' ? '0' : (c.deficit > 0 ? '+' : '') + Math.round(c.deficit) + ' ккал'}</b></div>
+             <div class="kv"><span>Цель по калориям</span><b>${Math.round(c.kcal)} ккал</b></div>
+             <div class="kv"><span>Вода</span><b>${Math.round(c.water)} мл</b></div>
+           </details>`}
+      <div style="margin-top:14px">
+        ${o.manual
+          ? `<div class="grid2">${button('Назад', {kind:'ghost', attrs:'data-act="onb-back"'})}${button('Сохранить', {kind:'primary', attrs:'data-act="onb-save-manual"'})}</div>`
+          : `<div class="grid2">${button('Править вручную', {kind:'ghost', attrs:'data-act="onb-manual"'})}${button('Принять', {kind:'primary', attrs:'data-act="onb-accept"'})}</div>
+             <div style="margin-top:10px">${button('Назад', {kind:'ghost', block:true, attrs:'data-act="onb-back"'})}</div>`}
+      </div>`;
+  }
+  return '';
+}
+function onbCollect(){
+  const o = onb, g = id => { const el = document.getElementById(id); return el ? el.value : null; };
+  if(o.step === 1 && g('o-name') != null) o.name = g('o-name');
+  if(o.step === 2){ o.age = g('o-age'); o.height = g('o-height'); o.weight = g('o-weight'); }
+  if(o.step === 4){ o.targetKg = g('o-tkg') ?? o.targetKg; const m = g('o-months'); if(m != null) o.months = Math.max(1, Math.min(12, Math.round(num(m)) || 1)); }
+  if(o.step === 5 && o.manual){
+    o.manualVals = {
+      kcal: gBase(GOALS[0], num(g('m-kcal'))), protein: num(g('m-protein')), fat: num(g('m-fat')), carb: num(g('m-carb')),
+      waterGoal: gBase(GOALS[4], num(g('m-waterGoal'))), stepsGoal: Math.round(num(g('m-stepsGoal'))) || 8000
+    };
+  }
+}
+function onbNext(){
+  const o = onb; onbCollect();
+  if(o.step === 1){
+    o.name = (o.name || '').trim();
+    o.step = 2; render();
+    return;
+  }
+  if(o.step === 2){
+    const age = Math.round(num(o.age)), height = Math.round(num(o.height)), weight = num(o.weight);
+    if(!(age >= 14 && age <= 100)) return onbErr('Возраст должен быть от 14 до 100 лет');
+    if(!(height >= 120 && height <= 230)) return onbErr('Рост должен быть от 120 до 230 см');
+    if(!(weight >= 30 && weight <= 250)) return onbErr('Вес должен быть от 30 до 250 кг');
+    o.age = age; o.height = height; o.weight = weight; o.err2 = ''; o.step = 3; render();
+    return;
+  }
+  if(o.step === 3){
+    if(!o.activity){ toast('Выберите уровень активности'); return; }
+    o.step = 4; render(); return;
+  }
+  if(o.step === 4){
+    if(o.type !== 'maintain'){
+      const tkg = num(o.targetKg);
+      if(!(tkg > 0)){ toast('Введите целевой вес'); return; }
+      if(!(o.months >= 1 && o.months <= 12)){ toast('Срок от 1 до 12 месяцев'); return; }
+      o.targetKg = tkg;
+    }
+    const p = {weightKg:o.weight, heightCm:o.height, age:o.age, sex:o.sex, activity:o.activity};
+    const targetDate = dateFrom(o.months * 4.345);
+    const g = {type:o.type, targetKg:o.type === 'maintain' ? o.weight : o.targetKg, targetDate:o.type === 'maintain' ? '' : targetDate};
+    o.calc = calcTargets(p, g, dateKey());
+    o.manual = false;
+    o.step = 5; render(); return;
+  }
+}
+function onbErr(msg){
+  onb.err2 = msg;
+  render();
+}
+function onbSkip(){
+  update(db => {
+    db.profile.name = (onb.name || '').trim();
+    db.profile.onboardingDone = true;
+  });
+  onb = null; go('profile'); toast('Профиль создан. Введите цели вручную.');
+}
+function onbAccept(){
+  const o = onb, c = o.calc;
+  update(db => {
+    db.profile.name = (o.name || '').trim();
+    db.profile.age = o.age; db.profile.sex = o.sex; db.profile.heightCm = o.height; db.profile.weightKg = o.weight;
+    db.profile.activity = o.activity; db.profile.onboardingDone = true;
+    db.profile.calcKg = o.weight; db.profile.calcDate = dateKey();
+    const targetDate = c.targetDateReal || c.targetDate || dateFrom(o.months * 4.345);
+    db.goal = {type:o.type, startKg:o.weight, startDate:dateKey(),
+      targetKg:o.type === 'maintain' ? o.weight : o.targetKg, targetDate:o.type === 'maintain' ? '' : targetDate};
+    db.targets = {kcal:c.kcal, protein:c.protein, fat:c.fat, carb:c.carb, waterGoal:c.water, stepsGoal:c.steps,
+      source:'auto', calcDate:dateKey()};
+    if(o.weight > 0) db.weights[dateKey()] = o.weight;
+  });
+  onb = null; goHome(); toast('Ориентиры сохранены');
+}
+function onbSaveManual(){
+  const o = onb; onbCollect();
+  const v = o.manualVals;
+  if(!(v.kcal >= 500 && v.kcal <= 10000)){ toast('Калории: от 500 до 10000'); return; }
+  if(!(v.waterGoal >= 500 && v.waterGoal <= 10000)){ toast('Вода: от 500 до 10000 мл'); return; }
+  update(db => {
+    db.profile.name = (o.name || '').trim();
+    if(o.age && o.height && o.weight){ db.profile.age = o.age; db.profile.sex = o.sex; db.profile.heightCm = o.height; db.profile.weightKg = o.weight; db.profile.activity = o.activity; }
+    db.profile.onboardingDone = true;
+    db.profile.calcKg = o.weight || db.profile.weightKg; db.profile.calcDate = dateKey();
+    if(o.weight) { db.weights[dateKey()] = o.weight; }
+    const td = o.months ? dateFrom(o.months * 4.345) : '';
+    db.goal = {type:o.type, startKg:o.weight, startDate:dateKey(), targetKg:o.type === 'maintain' ? (o.weight || db.profile.weightKg) : o.targetKg,
+      targetDate:o.type === 'maintain' ? '' : td};
+    db.targets = {kcal:v.kcal, protein:v.protein, fat:v.fat, carb:v.carb, waterGoal:v.waterGoal, stepsGoal:v.stepsGoal,
+      source:'manual', calcDate:dateKey()};
+  });
+  onb = null; goHome(); toast('Ваши значения сохранены');
+}
+
+/* ---------- Действия и свайп ---------- */
+const SW_W = 88; let swipe = null, swipeAt = 0;
+const closeSw = r => r.classList.remove('open');
+document.addEventListener('touchstart', e => {
+  const r = e.target.closest('.sw');
+  document.querySelectorAll('.sw.open').forEach(x => { if(x !== r) closeSw(x); });
+  if(!r || e.target.closest('.sw-del')){ swipe = null; return; }
+  const t = e.touches[0];
+  swipe = {r, x:t.clientX, y:t.clientY, lock:null, off:0, open:r.classList.contains('open'), inn:r.querySelector('.sw-in')};
+}, {passive:true});
+document.addEventListener('touchmove', e => {
+  if(!swipe) return;
+  const t = e.touches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+  if(!swipe.lock && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) swipe.lock = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+  if(swipe.lock !== 'h') return;
+  swipe.off = Math.max(-SW_W - 24, Math.min(0, (swipe.open ? -SW_W : 0) + dx));
+  swipe.inn.style.transition = 'none'; swipe.inn.style.transform = `translateX(${swipe.off}px)`;
+}, {passive:true});
+const endSwipe = () => {
+  if(!swipe) return; const s = swipe; swipe = null;
+  if(s.lock === 'h'){ swipeAt = Date.now(); s.inn.style.transition = ''; s.inn.style.transform = '';
+    s.r.classList.toggle('open', s.off < -SW_W / 2); }
+};
+document.addEventListener('touchend', endSwipe);
+document.addEventListener('touchcancel', endSwipe);
+
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]'); if(!a) return;
+  if(Date.now() - swipeAt < 350) return;
+  const sw = a.closest('.sw'), {act, id} = a.dataset;
+  if(sw && sw.classList.contains('open') && act.startsWith('edit-')){ closeSw(sw); return; }
+  switch(act){
+    case 'back':
+      if(currentScreen === 'onboarding'){
+        onb = null;
+        go(DB.profile.onboardingDone ? 'profile' : 'home');
+      } else {
+        goHome();
+      }
+      break;
+    case 'day': viewDate = shiftKey(viewDate, +a.dataset.d); render(true); break;
+    case 'today': viewDate = dateKey(); render(true); break;
+    case 'add': entryForm(null, a.dataset.meal); break;
+    case 'edit-entry': entryForm(id); break;
+    case 'del-entry': delEntry(id); break;
+    case 'detail': detail(a.dataset.k); break;
+    case 'new-food': editFood().then(() => render(true)); break;
+    case 'edit-food': editFood(id).then(() => render(true)); break;
+    case 'del-food': delFood(id); break;
+    case 'w-add': addWater(+a.dataset.ml); break;
+    case 'w-manual': { const el = document.getElementById('w-manual'); if(!addWater(Math.round(toMl(num(el.value))))) el.focus(); break; }
+    case 'w-undo': undoWater(); break;
+    case 'w-goal': editGoal('waterGoal'); break;
+    case 's-save': saveSteps(); break;
+    case 's-reset': resetSteps(); break;
+    case 's-goal': editGoal('stepsGoal'); break;
+    case 'cal-prev': calMove(-1); break;
+    case 'cal-next': calMove(1); break;
+    case 'cal-today': calSel = dateKey(); render(true); break;
+    case 'cal-pick': calSel = a.dataset.k; render(true); break;
+    case 'cal-diary': viewDate = calSel; go('diary'); break;
+    case 'st-range': stRange = +a.dataset.n; render(true); break;
+    case 'st-add': viewDate = dateKey(); go('diary'); break;
+    case 'p-name': editName(); break;
+    case 'p-goal': editGoal(a.dataset.key); break;
+    case 'unit': update(db => { db.profile.units[a.dataset.kind] = a.dataset.v; }); render(true); break;
+    case 'p-export': exportData(); break;
+    case 'p-import': document.getElementById('imp-file').click(); break;
+    case 'p-reset': resetAll(); break;
+    case 'onboard': onbStart(); go('onboarding'); break;
+    case 'onb-sex': onbCollect(); onb.sex = a.dataset.v; render(); break;
+    case 'onb-act': onbCollect(); onb.activity = +a.dataset.v; render(); break;
+    case 'onb-type': onbCollect(); onb.type = a.dataset.v; render(); break;
+    case 'onb-next': onbNext(); break;
+    case 'onb-back': onbCollect(); if(onb.step > 1){ onb.step--; if(onb.step === 5) onb.step = 4; } render(); break;
+    case 'onb-skip': onbSkip(); break;
+    case 'onb-accept': onbAccept(); break;
+    case 'onb-manual': onbCollect(); onb.manual = true; render(); break;
+    case 'onb-save-manual': onbSaveManual(); break;
+    case 'p-edit-goal': editGoalFlow(); break;
+    case 'p-recalc': recalcTargets(); break;
+    case 'p-weight': addWeight(); break;
+    case 'p-reset-targets': resetTargets(); break;
+    case 'p-reset-profile': resetProfile(); break;
+    case 'p-edit-params': editParams(); break;
+    case 'p-edit-type': editGoalFlow(); break;
+    case 'db-load': { const f = document.getElementById('db-file'); if(f) f.click(); break; }
+    case 'db-clear':
+      confirmDialog('Очистить базу продуктов? Свои продукты и записи не пострадают.', {ok:'Очистить'})
+        .then(ok => { if(ok) clearFoodsDB(); });
+      break;
+  }
+});
+
+document.addEventListener('input', e => {
+  // === ФИКС: живая валидация шага 4 онбординга ===
+  if(onb && onb.step === 4 && (e.target.id === 'o-tkg' || e.target.id === 'o-months')){
+    onbCollect();
+    const btn = document.getElementById('onb-next4');
+    if(btn){
+      const needTarget = onb.type !== 'maintain';
+      const valid = !needTarget || (num(onb.targetKg) > 0 && onb.months >= 1 && onb.months <= 12);
+      btn.style.opacity = valid ? '1' : '.6';
+    }
+  }
+  // === конец фикса ===
+
+  if(e.target.id === 'food-q') document.getElementById('foodlist').innerHTML = foodListHTML(e.target.value, false);
+});
+
+document.addEventListener('change', e => {
+  if(e.target.id === 'db-file' && e.target.files && e.target.files[0]){
+    importFoodsFile(e.target.files[0]).catch(err => toast('Ошибка загрузки: ' + err.message));
+    e.target.value = '';
+  }
+});
+
+/* ============ ПРОФИЛЬ ============ */
+const sumText = db => { const ek = Object.keys(db.entries);
+  return `записей питания: ${sum(ek, k => db.entries[k].length)} (дней: ${ek.length}), продуктов: ${db.foods.length}, дней с водой: ${Object.keys(db.water).length}, дней с шагами: ${Object.keys(db.steps).length}`; };
+
+const goalTypes = {lose:'Снижение веса', gain:'Набор веса', maintain:'Поддержание'};
+const goalCard = () => {
+  const G = DB.goal, P = DB.profile;
+  if(!G.startKg || G.type === 'maintain' && !G.targetKg) return card(`<h2 class="card-title">Цель</h2>
+    <p class="muted" style="margin:8px 0 0">Цель не задана. Настройте её, чтобы видеть прогресс.</p>
+    <div style="margin-top:12px">${button('Изменить цель', {kind:'soft', block:true, ic:'edit', attrs:'data-act="p-edit-goal"'})}</div>`);
+  const now = P.weightKg || G.startKg, target = G.targetKg || now;
+  const start = G.startKg || now;
+  const total = Math.abs(target - start), done = Math.abs(now - start);
+  const pc = total > 0 ? Math.min(done / total * 100, 100) : 0;
+  const weeksLeft = G.targetDate ? Math.max(0, Math.ceil((new Date(G.targetDate + 'T12:00:00') - Date.now()) / (7 * 24 * 3600 * 1000))) : null;
+  const wTrend = Object.keys(DB.weights).sort().map(k => DB.weights[k]);
+  const lastW = wTrend.length ? wTrend[wTrend.length - 1] : now;
+  return card(`<h2 class="card-title">Цель</h2>
+    <p class="muted" style="margin:2px 0 10px">${goalTypes[G.type] || 'Поддержание'}</p>
+    <div class="grid3" style="margin-bottom:2px">
+      <div class="tgt"><div class="row2"><span>Старт</span><b>${fmt(start)} кг</b></div></div>
+      <div class="tgt"><div class="row2"><span>Сейчас</span><b>${fmt(lastW)} кг</b></div></div>
+      <div class="tgt"><div class="row2"><span>Цель</span><b>${fmt(target)} кг</b></div></div>
+    </div>
+    <div class="progress-line"><i style="width:${pc.toFixed(1)}%"></i></div>
+    <div class="legend"><span>Пройдено <b>${Math.round(pc)}%</b></span>
+      ${weeksLeft != null ? `<span>Осталось недель: <b>${weeksLeft}</b></span>` : ''}
+      ${G.targetDate ? `<span>Срок: <b>${formatDateRu(G.targetDate)}</b></span>` : ''}</div>
+    <div class="grid2" style="margin-top:14px">
+      ${button('Изменить цель', {kind:'soft', ic:'edit', attrs:'data-act="p-edit-goal"'})}
+      ${button('Внести вес', {kind:'soft', ic:'plus', attrs:'data-act="p-weight"'})}
+    </div>`);
+};
+const targetsCard = () => {
+  const T = DB.targets;
+  const rows = [['Калории', eV(T.kcal), eU()], ['Белки', T.protein, 'г'], ['Жиры', T.fat, 'г'], ['Углеводы', T.carb, 'г'],
+    ['Вода', wV(T.waterGoal), wU()], ['Шаги', n0(T.stepsGoal), 'шагов']];
+  return card(`<h2 class="card-title">Ориентиры на день</h2>
+    <p class="muted" style="margin:0 0 10px">${T.source === 'auto' ? 'Рассчитано автоматически' : 'Ваши значения'}</p>
+    <div class="tgt">${rows.map(([a, b, u]) => `<div class="row2"><span>${a}</span><b>${b} ${u}</b></div>`).join('')}</div>
+    <div class="grid2" style="margin-top:12px">
+      ${button('Пересчитать', {kind:'primary', attrs:'data-act="p-recalc"'})}
+      ${button('Сбросить к расчёту', {kind:'ghost', attrs:'data-act="p-reset-targets"'})}
+    </div>`);
+};
+const bannerNeedRecalc = () => {
+  const P = DB.profile;
+  if(P.calcKg == null || P.weightKg == null) return '';
+  const diff = Math.abs(P.weightKg - P.calcKg);
+  if(diff < 1) return '';
+  return `<div class="info">Вес изменился на ${dec(diff, 1)} кг с последнего расчёта. <button style="background:none;border:0;color:var(--a);font-weight:600;padding:0;text-decoration:underline" data-act="p-recalc">Пересчитать ориентиры?</button></div>`;
+};
+
+function renderProfile(){
+  const P = DB.profile;
+  return card(`<h2 class="card-title">Профиль</h2>
+      <div class="tgt">
+        <div class="row2"><span>Имя</span><b>${P.name ? esc(P.name) : 'не задано'}</b></div>
+        <div class="row2"><span>Возраст</span><b>${P.age ?? '—'}</b></div>
+        <div class="row2"><span>Пол</span><b>${P.sex === 'm' ? 'Мужской' : P.sex === 'f' ? 'Женский' : '—'}</b></div>
+        <div class="row2"><span>Рост</span><b>${P.heightCm ? P.heightCm + ' см' : '—'}</b></div>
+        <div class="row2"><span>Вес</span><b>${P.weightKg ? fmt(P.weightKg) + ' кг' : '—'}</b></div>
+        <div class="row2"><span>Активность</span><b>${ACTIVITIES.find(a => a.v === P.activity)?.name || '—'}</b></div>
+      </div>
+      <div style="margin-top:12px">${button('Изменить параметры', {kind:'soft', block:true, ic:'edit', attrs:'data-act="p-edit-params"'})}</div>`)
+    + bannerNeedRecalc()
+    + goalCard()
+    + targetsCard()
+    + card(`<h2 class="card-title">База продуктов</h2>
+        <p class="muted" id="db-status" style="margin:6px 0 12px">Не загружена.</p>
+        <input type="file" id="db-file" accept=".json,application/json" hidden>
+        <div class="grid2">
+          ${button('Загрузить файл', {kind:'soft', ic:'upload', attrs:'data-act="db-load"'})}
+          ${button('Очистить', {kind:'ghost', ic:'trash', attrs:'data-act="db-clear"'})}
+        </div>`)
+    + card(`<h2 class="card-title">Данные</h2>
+        <p class="muted" style="margin:0 0 10px">${sumText(DB)}</p>
+        <div class="grid2">
+          ${button('Экспорт', {kind:'soft', ic:'download', attrs:'data-act="p-export"'})}
+          ${button('Импорт', {kind:'soft', ic:'upload', attrs:'data-act="p-import"'})}
+        </div>
+        <input type="file" id="imp-file" accept=".json,application/json" hidden>`)
+    + card(`<h2 class="card-title">Единицы измерения</h2>
+        <div class="sub-h">Энергия</div>
+        <div class="seg">
+          ${['kcal','kj'].map(x => `<button class="${P.units.energy === x ? 'on' : ''}" data-act="unit" data-kind="energy" data-v="${x}">${UNITS.energy[x].label}</button>`).join('')}
+        </div>
+        <div class="sub-h">Вода</div>
+        <div class="seg">
+          ${['ml','l','oz'].map(x => `<button class="${P.units.water === x ? 'on' : ''}" data-act="unit" data-kind="water" data-v="${x}">${UNITS.water[x].label}</button>`).join('')}
+        </div>`)
+    + card(`<h2 class="card-title">Ещё</h2>
+        <div class="grid2" style="margin-top:10px">
+          ${button('Имя', {kind:'ghost', ic:'edit', attrs:'data-act="p-name"'})}
+          ${button('Сбросить профиль', {kind:'danger', ic:'trash', attrs:'data-act="p-reset-profile"'})}
+        </div>`);
+}
+
+function editName(){
+  openModal({title:'Имя', content:field('Как к вам обращаться', {id:'nm', value:DB.profile.name, placeholder:'Имя'}),
+    buttons:[{text:'Отмена', kind:'ghost', value:false},
+      {text:'Сохранить', kind:'primary', value:true, onClick: ov => {
+        const v = $id(ov, 'nm').value.trim().slice(0, 30);
+        update(db => { db.profile.name = v; }); render(true); }}]});
+}
+function editParams(){
+  const P = DB.profile;
+  openModal({title:'Параметры', content:
+    field('Возраст, лет', {id:'pp-age', value:P.age ?? '', mode:'numeric'})
+    + field('Рост, см', {id:'pp-height', value:P.heightCm ?? '', mode:'numeric'})
+    + field('Вес, кг', {id:'pp-weight', value:P.weightKg ?? '', mode:'decimal'})
+    + `<div class="sub-h">Пол</div><div class="sex" data-v="${P.sex}">
+        ${['m','f',''].map(v => `<button class="sex-opt ${P.sex === v ? 'on' : ''}" data-v="${v}">${v === 'm' ? 'Мужской' : v === 'f' ? 'Женский' : 'Не указывать'}</button>`).join('')}
+      </div>`,
+    onOpen: ov => {
+      ov.querySelectorAll('.sex-opt').forEach(b => {
+        b.addEventListener('click', () => {
+          ov.querySelectorAll('.sex-opt').forEach(x => x.classList.remove('on'));
+          b.classList.add('on');
+          ov.querySelector('.sex').dataset.v = b.dataset.v;
+        });
+      });
+    },
+    buttons:[{text:'Отмена', kind:'ghost', value:false},
+      {text:'Сохранить', kind:'primary', value:true, onClick: ov => {
+        const sex = ov.querySelector('.sex').dataset.v ?? P.sex;
+        update(db => {
+          db.profile.age = Math.round(num($id(ov, 'pp-age').value)) || null;
+          db.profile.heightCm = Math.round(num($id(ov, 'pp-height').value)) || null;
+          db.profile.weightKg = num($id(ov, 'pp-weight').value) || null;
+          db.profile.sex = sex;
+        });
+        render(true); }}]});
+}
+function addWeight(){
+  openModal({title:'Внести вес', content:field('Вес, кг', {id:'wv', mode:'decimal', placeholder:'65'}),
+    buttons:[{text:'Отмена', kind:'ghost', value:false},
+      {text:'Сохранить', kind:'primary', value:true, onClick: ov => {
+        const v = num($id(ov, 'wv').value);
+        if(!(v > 0)){ toast('Введите вес'); return false; }
+        update(db => { db.weights[dateKey()] = v; db.profile.weightKg = v; });
+        toast('Вес сохранён'); render(true); }}]});
+}
+function editGoalFlow(){
+  onbStart();
+  go('onboarding');
+}
+function recalcTargets(){
+  const P = DB.profile;
+  if(!P.weightKg || !P.heightCm || !P.age){ toast('Заполните возраст, рост и вес в профиле'); return; }
+  const g = DB.goal.targetKg ? DB.goal : {type:'maintain', targetKg:P.weightKg, targetDate:''};
+  const c = calcTargets(P, g, dateKey());
+  update(db => {
+    db.targets = {kcal:c.kcal, protein:c.protein, fat:c.fat, carb:c.carb, waterGoal:c.water, stepsGoal:c.steps,
+      source:'auto', calcDate:dateKey()};
+    db.profile.calcKg = P.weightKg; db.profile.calcDate = dateKey();
+  });
+  toast('Ориентиры пересчитаны'); render(true);
+}
+function resetTargets(){
+  confirmDialog('Сбросить цели к значениям по умолчанию?', {ok:'Сбросить'}).then(ok => {
+    if(!ok) return;
+    update(db => { db.targets = emptyData().targets; });
+    toast('Цели сброшены'); render(true);
+  });
+}
+function resetProfile(){
+  confirmDialog('Сбросить все данные профиля? Питание, вода и шаги сохранятся.', {ok:'Сбросить'}).then(ok => {
+    if(!ok) return;
+    update(db => { db.profile = emptyData().profile; db.goal = emptyData().goal; });
+    toast('Профиль сброшен'); render(true);
+  });
+}
+function exportData(){
+  const data = JSON.stringify(DB, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `nutrition-backup-${dateKey()}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Экспорт готов');
+}
+function resetAll(){
+  confirmDialog('Удалить ВСЕ данные приложения? Это действие необратимо.', {ok:'Удалить всё'}).then(ok => {
+    if(!ok) return;
+    localStorage.removeItem(KEY);
+    DB = emptyData();
+    toast('Все данные удалены'); goHome();
+  });
+}
+
+/* ============ НАВИГАЦИЯ И СТАРТ ============ */
+let currentScreen = 'home';
+function go(screen){
+  currentScreen = screen;
+  render(true);
+}
+function goHome(){ go('home'); }
+
+function render(scrollTop){
+  const app = document.getElementById('app');
+  const s = SCREENS[currentScreen] || SCREENS.home;
+  let html = s.render();
+
+  if(currentScreen !== 'home' && currentScreen !== 'onboarding'){
+    html = `<div class="top">
+      <button class="iconbtn" data-act="back" aria-label="Назад">${icon('back')}</button>
+      <h1>${s.title || ''}</h1>
+      <span class="sp"></span>
+    </div>` + html;
+  }
+
+  app.innerHTML = html;
+  if(scrollTop) window.scrollTo(0, 0);
+  updateFoodsStatus();
+}
+
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]');
+  if(g){ go(g.dataset.go); }
+});
+
+// Старт
+loadFoodsFromIDB().finally(() => {
+  if(!DB.profile.onboardingDone && !onb){
+    onbStart();
+    currentScreen = 'onboarding';
+  }
+  render(true);
+});
+</script>
+</body>
+</html>
