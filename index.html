@@ -1707,7 +1707,8 @@ async function scenarioItemQty(it){
   const startVal = () => mode === 'g' ? (unit === 'г' ? Q0 : G0) : Q0;
   const segHTML = () => canToggle
     ? `<div class="seg" style="margin-top:4px"><button type="button" data-qm="u" class="${mode === 'u' ? 'on' : ''}">${esc(pLabel)}</button><button type="button" data-qm="g" class="${mode === 'g' ? 'on' : ''}">г</button></div>` : '';
-  const r = await openModal({
+  let result = null;
+  await openModal({
     title: esc(it.name),
     message:'Укажите, сколько продукта входит в сценарий.',
     content: `<div id="qi-seg">${segHTML()}</div>
@@ -1737,12 +1738,13 @@ async function scenarioItemQty(it){
         const q = num($id(ov, 'qi-qty').value);
         if(!(q > 0)){ toast('Введите количество'); return false; }
         const f = factorOf(q, mode), g = gramsOf(q, mode);
-        return {...it, qty:r1(q), unit:unitOf(mode), grams:G0 > 0 ? r1(g) : it.grams,
+        result = {...it, qty:r1(q), unit:unitOf(mode), grams:G0 > 0 ? r1(g) : it.grams,
           kcal:r1(it.kcal * f), p:r1(it.p * f), f:r1(it.f * f), c:r1(it.c * f),
           uLabel:canToggle ? pLabel : (it.uLabel || ''), uGrams:canToggle ? r1(pGrams * 100) / 100 : (it.uGrams || 0)};
+        return true;
       }}]
   });
-  return r && typeof r === 'object' ? r : null;
+  return result;
 }
 async function manualScenarioItem(){
   const r = await openModal({
