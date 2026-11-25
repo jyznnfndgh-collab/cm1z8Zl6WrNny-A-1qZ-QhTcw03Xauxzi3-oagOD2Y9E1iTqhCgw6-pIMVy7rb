@@ -30,15 +30,17 @@
 }
 
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--tx);
+html,body{margin:0;color:var(--tx);
   font:16px/1.4 -apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
   -webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;
-  background-image: 
-    radial-gradient(circle at 50% -20%, rgba(255, 123, 84, 0.4) 0%, rgba(255, 45, 85, 0.1) 40%, transparent 70%),
-    linear-gradient(180deg, rgba(0,0,0,0) 0%, #000000 60%);
-  background-attachment: fixed;
-  background-color: #1a0a05;
 }
+html{background:#000}
+body{background:transparent}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background-color:#1a0a05;
+  background-image:
+    radial-gradient(circle at 50% -20%, rgba(255, 123, 84, 0.4) 0%, rgba(255, 45, 85, 0.1) 40%, transparent 70%),
+    linear-gradient(180deg, rgba(0,0,0,0) 0%, #000000 60%)}
 body.lock{overflow:hidden}
 button{font:inherit;color:inherit;cursor:pointer}
 #app{max-width:520px;margin:0 auto;min-height:100dvh;
@@ -124,7 +126,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   animation:fade .18s ease-out;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .sheet{width:100%;max-width:520px;background:var(--glass-bg);border:1px solid var(--glass-border);border-bottom:0;
   border-radius:24px 24px 0 0;padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 16px);
-  max-height:88dvh;overflow:auto;animation:up .22s ease-out;backdrop-filter:blur(40px) saturate(150%);-webkit-backdrop-filter:blur(40px) saturate(150%)}
+  max-height:88dvh;overflow:auto;overscroll-behavior:contain;animation:up .22s ease-out;backdrop-filter:blur(40px) saturate(150%);-webkit-backdrop-filter:blur(40px) saturate(150%)}
 .sheet h3{margin:0 0 6px;font-size:20px;font-weight:650}
 .sheet .msg{color:var(--mut);font-size:15px;margin:0 0 16px}
 .sheet .acts{display:flex;gap:10px;margin-top:8px}
@@ -143,6 +145,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .daylbl{flex:1;min-height:40px;border-radius:14px;border:1px solid var(--glass-border);background:var(--glass-bg);font-weight:600;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
 .daylbl::first-letter{text-transform:uppercase}
 .grid2,.grid3{display:grid;gap:10px}.grid2{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:repeat(3,1fr)}
+.grid3 > .btn{padding:0 6px;white-space:nowrap}
 select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A1A1A5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 14px center;background-size:18px;padding-right:40px}
 .chk{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:14px;color:var(--mut)}
@@ -223,10 +226,12 @@ select.input{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w
 .cd:active{transform:scale(.94)}
 .cd.tod{border-color:var(--peach);color:var(--peach)}
 .cd.sel{background:var(--a);border-color:var(--a);color:#fff}
-.cd.dot::after{content:"";position:absolute;bottom:7px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--peach)}
-.cd.wdot::after{content:"";position:absolute;bottom:2px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--water)}
-.cd.tdot::after{content:"";position:absolute;bottom:2px;left:calc(50% + 6px);width:4px;height:4px;border-radius:50%;background:var(--f-green)}
-.cd.sel.dot::after{background:#fff}
+.cd .dots{position:absolute;bottom:5px;left:0;right:0;display:flex;justify-content:center;gap:3px;pointer-events:none}
+.cd .dots i{width:5px;height:5px;border-radius:50%}
+.cd .dots .k{background:var(--peach)}.cd .dots .w{background:var(--water)}.cd .dots .t{background:var(--f-green)}
+.cd.sel .dots .k{background:#fff}
+.cd.mut{opacity:.4}
+.legend .lgd{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .cd:focus-visible{outline:2px solid var(--a);outline-offset:2px}
 .cm{padding:10px 0;border-bottom:1px solid var(--glass-border)}
 .cm:last-child{border-bottom:0;padding-bottom:0}
@@ -385,6 +390,9 @@ const sum = (arr, f) => arr.reduce((a, x) => a + (Number(f(x)) || 0), 0);
 const n0 = n => Math.round(Number(n) || 0).toLocaleString('ru-RU');
 
 const KEY = 'nutrition-tracker-v1';
+/* MEALS должен быть объявлен ДО loadData(): normalize() использует его при загрузке */
+const MEALS = [{id:'breakfast',name:'Завтрак'},{id:'snack',name:'Перекус'},{id:'lunch',name:'Обед'},
+  {id:'tea',name:'Полдник'},{id:'dinner',name:'Ужин'},{id:'other',name:'Другое'}];
 const UNITS = {
   energy:{kcal:{label:'ккал', f:1, d:0, dp:1}, kj:{label:'кДж', f:4.184, d:0, dp:0}},
   water:{ml:{label:'мл', f:1, d:0, quick:[150,250,500]}, l:{label:'л', f:.001, d:2, quick:[250,500,1000]},
@@ -406,7 +414,7 @@ const emptyData = () => ({
   targets:{kcal:2000, protein:100, fat:70, carb:250, waterGoal:2000, stepsGoal:8000, source:'manual', calcDate:''},
   weights:{},
   foods:[], entries:{}, water:{}, steps:{},
-  meals:[], workouts:{}, frequentPinned:[]
+  meals:[], workouts:{}, frequentPinned:[], mealsSeeded:false
 });
 const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
 const TGT_KEYS = ['kcal','protein','fat','carb','waterGoal','stepsGoal'];
@@ -492,17 +500,38 @@ function normalize(d, fb){
 
   const frequentPinned = (Array.isArray(d.frequentPinned) ? d.frequentPinned : []).filter(x => typeof x === 'string').slice(0, 40);
 
-  return {profile, goal, targets, weights, foods, entries, water, steps, meals, workouts, frequentPinned};
+  return {profile, goal, targets, weights, foods, entries, water, steps, meals, workouts, frequentPinned,
+    mealsSeeded: !!d.mealsSeeded || meals.length > 0};
 }
+let LOAD_FAILED = false;   // true, если данные есть, но прочитать не удалось: НЕ перезаписываем их пустыми
+let LS_WAS_EMPTY = false;  // в localStorage не было данных вообще (кандидат на восстановление из IndexedDB)
 function loadData(){
-  try{ const raw = localStorage.getItem(KEY); if(!raw) return emptyData();
-    const d = JSON.parse(raw); return isObj(d) ? normalize(d) : emptyData();
-  }catch(e){ return emptyData(); }
+  let raw = null;
+  try{ raw = localStorage.getItem(KEY); }catch(e){ console.error('localStorage read failed', e); }
+  if(!raw){ LS_WAS_EMPTY = true; return emptyData(); }
+  try{
+    const d = JSON.parse(raw);
+    if(!isObj(d)) throw new Error('data is not an object');
+    return normalize(d);
+  }catch(e){
+    console.error('loadData failed, raw data preserved', e);
+    LOAD_FAILED = true;
+    try{ if(localStorage.getItem(KEY + '-corrupt') == null) localStorage.setItem(KEY + '-corrupt', raw); }catch(_){}
+    return emptyData();
+  }
 }
 let DB = loadData();
 
+let _idbMirrorTimer = null;
+function mirrorToIDB(){
+  clearTimeout(_idbMirrorTimer);
+  _idbMirrorTimer = setTimeout(() => {
+    try{ IDB.set('userdata', JSON.stringify(DB)).catch(() => {}); }catch(e){}
+  }, 300);
+}
 function saveData(){
-  try{ localStorage.setItem(KEY, JSON.stringify(DB)); return true; }
+  if(LOAD_FAILED){ toast('Данные не прочитаны — сохранение отключено, чтобы не потерять их'); return false; }
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); mirrorToIDB(); return true; }
   catch(e){ toast('Не удалось сохранить данные'); return false; }
 }
 function update(fn){ fn(DB); return saveData(); }
@@ -550,9 +579,10 @@ function workoutDoneCount(mondayKey = weekMondayKey()){
   return (DB.workouts[mondayKey] || []).filter(w => w && w.done).length;
 }
 function ensureWorkoutSlots(mondayKey = weekMondayKey()){
-  const need = Math.max(1, DB.profile.workoutsPerWeek | 0, (DB.workouts[mondayKey] || []).length);
+  const want = Math.max(1, DB.profile.workoutsPerWeek | 0);
   const arr = DB.workouts[mondayKey] || (DB.workouts[mondayKey] = []);
-  while(arr.length < need) arr.push(null);
+  while(arr.length > want && !arr[arr.length - 1]) arr.pop();
+  while(arr.length < want) arr.push(null);
   return arr;
 }
 
@@ -615,30 +645,36 @@ let FOOD_CATEGORIES = [];
 
 const _norm = s => String(s || '').toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 
+/* ВАЖНО: в JS «\b» понимает только латиницу/цифры, на кириллице граница слова не находится —
+   поэтому границы заданы явно: (?:^|[^а-я]) в начале и (?![а-я]) в конце.
+   Строка уже нормализована в _norm (нижний регистр, ё→е). */
 const PIECE_DICT = [
-  {re:/\bбанан\b/i, grams:120, label:'шт'},
-  {re:/\bяблоко\b/i, grams:180, label:'шт'},
-  {re:/\bапельсин\b/i, grams:200, label:'шт'},
-  {re:/\bгруша\b/i, grams:180, label:'шт'},
-  {re:/\bкиви\b/i, grams:90, label:'шт'},
-  {re:/\bмандарин\b/i, grams:80, label:'шт'},
-  {re:/\bперсик\b/i, grams:150, label:'шт'},
-  {re:/\bпомидор\b/i, grams:120, label:'шт'},
-  {re:/\bогурец\b/i, grams:100, label:'шт'},
-  {re:/\bяйцо\b/i, grams:55, label:'шт'},
-  {re:/\bбулочка\b/i, grams:80, label:'шт'},
-  {re:/\bбатончик\b/i, grams:40, label:'шт'},
-  {re:/\bломтик хлеба|тост/i, grams:30, label:'ломтик'},
-  {re:/\bхлеб\b/i, grams:30, label:'ломтик'},
-  {re:/\bстакан\b/i, grams:250, label:'стакан'},
-  {re:/\bложка\b/i, grams:15, label:'ложка'},
-  {re:/\bтарелка супа|суп\b/i, grams:300, label:'тарелка'},
-  {re:/\bкаша\b/i, grams:250, label:'порция'},
-  {re:/\bгарнир\b/i, grams:200, label:'порция'},
-  {re:/\bпорция\b/i, grams:200, label:'порция'}
+  {re:/(?:^|[^а-я])банан(?![а-я])/i, grams:120, label:'шт'},
+  {re:/(?:^|[^а-я])яблоко(?![а-я])/i, grams:180, label:'шт'},
+  {re:/(?:^|[^а-я])апельсин(?![а-я])/i, grams:200, label:'шт'},
+  {re:/(?:^|[^а-я])груша(?![а-я])/i, grams:180, label:'шт'},
+  {re:/(?:^|[^а-я])киви(?![а-я])/i, grams:90, label:'шт'},
+  {re:/(?:^|[^а-я])мандарин(?![а-я])/i, grams:80, label:'шт'},
+  {re:/(?:^|[^а-я])персик(?![а-я])/i, grams:150, label:'шт'},
+  {re:/(?:^|[^а-я])помидор(?![а-я])/i, grams:120, label:'шт'},
+  {re:/(?:^|[^а-я])огурец(?![а-я])/i, grams:100, label:'шт'},
+  {re:/(?:^|[^а-я])яйцо(?![а-я])/i, grams:55, label:'шт'},
+  {re:/(?:^|[^а-я])булочка(?![а-я])/i, grams:80, label:'шт'},
+  {re:/(?:^|[^а-я])батончик(?![а-я])/i, grams:40, label:'шт'},
+  {re:/(?:^|[^а-я])ломтик хлеба|тост/i, grams:30, label:'ломтик'},
+  {re:/(?:^|[^а-я])хлеб(?![а-я])/i, grams:30, label:'ломтик'},
+  {re:/(?:^|[^а-я])стакан(?![а-я])/i, grams:250, label:'стакан'},
+  {re:/(?:^|[^а-я])ложка(?![а-я])/i, grams:15, label:'ложка'},
+  {re:/(?:^|[^а-я])тарелка супа|(?:^|[^а-я])суп(?![а-я])/i, grams:300, label:'тарелка'},
+  {re:/(?:^|[^а-я])каша(?![а-я])/i, grams:250, label:'порция'},
+  {re:/(?:^|[^а-я])гарнир(?![а-я])/i, grams:200, label:'порция'},
+  {re:/(?:^|[^а-я])порция(?![а-я])/i, grams:200, label:'порция'}
 ];
+/* сушёное, консервы, пюре и т.п. — вес «штуки» от свежего продукта тут не подходит */
+const PIECE_SKIP = /сушен|вялен|консерв|пюре|варень|джем|чипс|порошок/;
 function pieceHintFor(name, cat){
-  const hay = _norm(name + ' ' + (cat || ''));
+  const hay = _norm(name);   // только по названию: категория давала бы ложные срабатывания
+  if(PIECE_SKIP.test(hay)) return null;
   for(const d of PIECE_DICT){ if(d.re.test(hay)) return {grams:d.grams, label:d.label}; }
   return null;
 }
@@ -801,7 +837,10 @@ function calcTargets(p, g, userDate){
     res.notes.push('Целевой ИМТ выше 30 — мягкое напоминание: набор веса стоит обсуждать со специалистом.');
   }
 
-  if(isLoss || isGain){
+  const dirDelta = (Number(g.targetKg) || 0) - W;
+  const dirOk = (isLoss && dirDelta < 0) || (isGain && dirDelta > 0);
+  if((isLoss || isGain) && !dirOk) res.warnings.push('Целевой вес не соответствует выбранной цели (для снижения он должен быть меньше текущего, для набора — больше). Калории рассчитаны для поддержания веса.');
+  if((isLoss || isGain) && dirOk){
     const delta = g.targetKg - W;
     let weeks = 0;
     if(g.targetDate) weeks = weeksBetween(dateKey(), g.targetDate);
@@ -1041,8 +1080,6 @@ function renderHome(){
 }
 
 /* ============ ПИТАНИЕ И ДНЕВНИК ============ */
-const MEALS = [{id:'breakfast',name:'Завтрак'},{id:'snack',name:'Перекус'},{id:'lunch',name:'Обед'},
-  {id:'tea',name:'Полдник'},{id:'dinner',name:'Ужин'},{id:'other',name:'Другое'}];
 const mealOf = e => MEALS.some(m => m.id === e.meal) ? e.meal : 'other';
 const guessMeal = h => h < 10 ? 'breakfast' : h < 12 ? 'snack' : h < 15 ? 'lunch' : h < 17 ? 'tea' : h < 21 ? 'dinner' : 'other';
 const num = v => { const n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.')); return isFinite(n) && n > 0 ? n : 0; };
@@ -1139,7 +1176,7 @@ function renderDiary(){
   const t = dayTotals(viewDate), T = DB.targets;
   const row = e => {
     const subs = [];
-    if(e.qty && e.unitLabel) subs.push(`${fmt(e.qty)} ${esc(e.unitLabel)}`);
+    if(e.qty && e.unitLabel && e.unitLabel !== 'г') subs.push(`${fmt(e.qty)} ${esc(e.unitLabel)}`);
     if(e.grams) subs.push(fmt(e.grams) + ' г');
     subs.push(`Б ${fmt(e.p)}`, `Ж ${fmt(e.f)}`, `У ${fmt(e.c)}`);
     if(e.time) subs.push(e.time);
@@ -1170,7 +1207,7 @@ async function entryForm(id, meal){
   const e = old || {meal:meal || guessMeal(n.getHours()), name:'', grams:'', kcal:'', p:'', f:'', c:'', time:`${pad(n.getHours())}:${pad(n.getMinutes())}`};
   const sh = v => v === '' || v == null ? '' : fmt(v), shE = v => v === '' || v == null ? '' : dec(v * U('energy').f, 0);
   let unitState = { mode:'g', unitLabel:'', unitGrams:0, qty:1 };
-  if(old && old.unitLabel && old.qty > 0){ unitState = { mode:'pcs', unitLabel:old.unitLabel, unitGrams: old.grams / old.qty, qty:old.qty }; }
+  if(old && old.unitLabel && old.unitLabel !== 'г' && old.qty > 0){ unitState = { mode:'pcs', unitLabel:old.unitLabel, unitGrams: old.grams / old.qty, qty:old.qty }; }
 
   const content = `
     <label class="field"><span>Приём пищи</span><select class="input" id="e-meal">
@@ -1335,7 +1372,7 @@ async function entryForm(id, meal){
     buttons: [
       ...(old ? [{text:'Удалить', kind:'danger', value:'del', onClick: async () => {
         if(!await confirmDialog(`Удалить запись «${esc(old.name)}»?`)) return false;
-        update(db => { db.entries[viewDate] = db.entries[viewDate].filter(x => x.id !== old.id);
+        update(db => { db.entries[viewDate] = (db.entries[viewDate] || []).filter(x => x.id !== old.id);
           if(!db.entries[viewDate].length) delete db.entries[viewDate]; });
         toast('Запись удалена'); }}] : []),
       {text:'Отмена', kind:'ghost', value:false},
@@ -1373,7 +1410,7 @@ async function entryForm(id, meal){
 async function delEntry(id){
   const e = (DB.entries[viewDate] || []).find(x => x.id === id); if(!e) return;
   if(!await confirmDialog(`Удалить запись «${esc(e.name)}»?`)) return;
-  update(db => { db.entries[viewDate] = db.entries[viewDate].filter(x => x.id !== id);
+  update(db => { db.entries[viewDate] = (db.entries[viewDate] || []).filter(x => x.id !== id);
     if(!db.entries[viewDate].length) delete db.entries[viewDate]; });
   toast('Запись удалена'); render(true);
 }
@@ -1389,7 +1426,7 @@ function foodListHTML(q, pick){
     ? `<button class="frow" data-pick="${f.id}"><div class="nm">${esc(f.name)}</div>
         <div class="sub"><span>${eV(f.per100.kcal, U('energy').dp)} ${eU()}</span>${foodSubs(f.per100).map(x => `<span>${x}</span>`).join('')}
         ${f.units && f.units.length ? `<span>${esc(f.units[0].label)} ≈ ${fmt(f.units[0].grams)} г</span>` : ''}</div></button>`
-    : swRow('food', f.id, f.name, foodSubs(f.per100).concat(f.units && f.units.length ? [`${f.units[0].label} ≈ ${fmt(f.units[0].grams)} г`] : []),
+    : swRow('food', f.id, f.name, foodSubs(f.per100).concat(f.units && f.units.length ? [`${esc(f.units[0].label)} ≈ ${fmt(f.units[0].grams)} г`] : []),
       `<div class="kc">${eV(f.per100.kcal, U('energy').dp)}<small>${eU()} / 100 г</small></div>`)).join('');
 }
 function renderFoods(){
@@ -1564,7 +1601,8 @@ function togglePin(name){
 }
 
 function ensureMealsSeeded(){
-  if(Array.isArray(DB.meals) && DB.meals.length) return;
+  if(DB.mealsSeeded) return;
+  if(Array.isArray(DB.meals) && DB.meals.length){ update(db => { db.mealsSeeded = true; }); return; }
   const seed = [
     {id:uid(), name:'Классический завтрак', meal:'breakfast', items:[
       {foodId:'', name:'Творог 5%', qty:150, unit:'г', grams:150, kcal:180, p:21, f:7.5, c:6},
@@ -1575,7 +1613,7 @@ function ensureMealsSeeded(){
       {foodId:'', name:'Рис отварной', qty:200, unit:'г', grams:200, kcal:232, p:5, f:0.6, c:50}
     ]}
   ];
-  update(db => { db.meals = seed; });
+  update(db => { db.meals = seed; db.mealsSeeded = true; });
 }
 const mealTotalKcal = m => sum(m.items, it => it.kcal);
 const mealSum = (m, k) => sum(m.items, it => it[k]);
@@ -1600,20 +1638,20 @@ function scenarioStrip(){
 
 async function applyScenario(id){
   const m = DB.meals.find(x => x.id === id); if(!m) return;
-  const key = dateKey();
+  const key = viewDate;
   const mealId = m.meal || guessMeal(new Date().getHours());
   const now = new Date();
   const time = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const added = m.items.map(it => ({
     id:uid(), meal:mealId, name:it.name, grams:it.grams,
     kcal:it.kcal, p:it.p, f:it.f, c:it.c,
-    time, qty:it.qty, unitLabel:it.unit
+    time, qty:(it.unit && it.unit !== 'г') ? it.qty : 0, unitLabel:(it.unit && it.unit !== 'г') ? it.unit : ''
   }));
   update(db => {
     const l = db.entries[key] || (db.entries[key] = []);
     added.forEach(a => l.push(a));
   });
-  toast(`Добавлено: ${esc(m.name)}`, { label:'Отменить', fn:() => {
+  toast(`Добавлено: ${m.name}`, { label:'Отменить', fn:() => {
     update(db => {
       const ids = new Set(added.map(a => a.id));
       db.entries[key] = (db.entries[key] || []).filter(e => !ids.has(e.id));
@@ -1761,7 +1799,8 @@ async function scenarioItemQty(it){
   return result;
 }
 async function manualScenarioItem(){
-  const r = await openModal({
+  let result = null;   // openModal возвращает value кнопки, а не результат onClick — забираем данные через переменную
+  await openModal({
     title:'Продукт в сценарий',
     content: field('Название', {id:'ms-name', placeholder:'Например, овсянка'})
       + `<div class="grid2">${field('Кол-во', {id:'ms-qty', value:'100', mode:'decimal'})}
@@ -1775,20 +1814,22 @@ async function manualScenarioItem(){
       {text:'Добавить', kind:'primary', value:true, onClick: ov => {
         const name = $id(ov, 'ms-name').value.trim();
         if(!name){ toast('Введите название'); return false; }
-        return {name,
+        result = {foodId:'', name,
           qty:num($id(ov, 'ms-qty').value), unit:$id(ov, 'ms-unit').value.trim() || 'г',
           grams:num($id(ov, 'ms-g').value),
           kcal:num($id(ov, 'ms-kcal').value), p:num($id(ov, 'ms-p').value),
           f:num($id(ov, 'ms-f').value), c:num($id(ov, 'ms-c').value)};
+        return true;
       }}]
   });
-  return r || null;
+  return result;
 }
 async function saveDayAsScenario(mealId){
   const list = (DB.entries[dateKey()] || []).filter(e => mealOf(e) === mealId);
   if(!list.length){ toast('В этом приёме пищи пока нет записей'); return; }
   const mealName = MEALS.find(m => m.id === mealId)?.name || 'Приём';
-  const name = await openModal({
+  let name = '';
+  await openModal({
     title:'Сохранить как сценарий',
     message:`Приём «${mealName}», ${list.length} продуктов`,
     content: field('Название сценария', {id:'sd-name', value:mealName, placeholder:'Например, мой завтрак'}),
@@ -1796,7 +1837,8 @@ async function saveDayAsScenario(mealId){
       {text:'Сохранить', kind:'primary', value:'ok', onClick: ov => {
         const n = $id(ov, 'sd-name').value.trim();
         if(!n){ toast('Введите название'); return false; }
-        return n;
+        name = n;
+        return true;
       }}]
   });
   if(!name) return;
@@ -1882,7 +1924,7 @@ function renderWater(){
   const quick = U('water').quick.map(ml => button('+' + wV(ml) + ' ' + wU(), {kind:'water', attrs:`data-act="w-add" data-ml="${ml}"`})).join('');
   return screenHead('Вода') + card(bigRing(t, T.waterGoal, wU(), 'var(--water)', wV, 'water-big') + goalRow('w-goal', 'Цель на день', wV(T.waterGoal) + ' ' + wU()))
     + card(`<h2 class="card-title">Добавить воду</h2><div class="grid3" style="margin:12px 0">${quick}</div>
-      <div class="inl"><input class="input" id="w-manual" inputmode="numeric" placeholder="Своё количество, ${wU()}" autocomplete="off" aria-label="Количество воды, ${wU()}">
+      <div class="inl"><input class="input" id="w-manual" inputmode="decimal" placeholder="Своё количество, ${wU()}" autocomplete="off" aria-label="Количество воды, ${wU()}">
       ${button('Добавить', {kind:'primary', attrs:'data-act="w-manual"'})}</div>`)
     + card(`<h2 class="card-title">Записи за сегодня</h2>` + (l.length
       ? `<div class="chips">${l.map((x, i) => `<span class="chip${i === l.length - 1 ? ' last' : ''}">${wV(x)} ${wU()}</span>`).join('')}</div>
@@ -1901,7 +1943,7 @@ function addWater(ml){
 async function undoWater(){
   const k = dateKey(), l = waterList(k); if(!l.length) return;
   if(!await confirmDialog(`Удалить последнюю запись воды: ${wV(l[l.length - 1])} ${wU()}?`)) return;
-  update(db => { db.water[k].pop(); if(!db.water[k].length) delete db.water[k]; });
+  update(db => { if(!Array.isArray(db.water[k])) return; db.water[k].pop(); if(!db.water[k].length) delete db.water[k]; });
   toast('Запись удалена'); render(true);
 }
 const GOALS = [
@@ -2059,8 +2101,9 @@ function renderCalendar(){
     const dot = t.count > 0;
     const wdot = t.water > 0;
     const tdot = t.burned > 0;
-    return `<button class="cd${isTod ? ' tod' : ''}${isSel ? ' sel' : ''}${dot ? ' dot' : ''}${wdot ? ' wdot' : ''}${tdot ? ' tdot' : ''}"
-      data-cal="${k}" aria-label="${formatDateRu(k)}">${c.day}</button>`;
+    const dots = (dot ? '<i class="k"></i>' : '') + (wdot ? '<i class="w"></i>' : '') + (tdot ? '<i class="t"></i>' : '');
+    return `<button class="cd${isTod ? ' tod' : ''}${isSel ? ' sel' : ''}${c.muted ? ' mut' : ''}"
+      data-cal="${k}" aria-label="${formatDateRu(k)}">${c.day}${dots ? `<span class="dots">${dots}</span>` : ''}</button>`;
   }).join('');
   const monthLbl = calMonth.toLocaleDateString('ru-RU', {month:'long', year:'numeric'});
   return screenHead('Календарь') + `<div class="card">
@@ -2071,7 +2114,7 @@ function renderCalendar(){
     </div>
     <div class="wd">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(x => `<span>${x}</span>`).join('')}</div>
     <div class="cg">${html}</div>
-    <div class="legend"><span>Калории: <b>точка</b></span><span>Вода: <b>капля</b></span><span>Тренировка: <b>зелёная точка</b></span></div>
+    <div class="legend"><span><i class="lgd" style="background:var(--peach)"></i>Еда</span><span><i class="lgd" style="background:var(--water)"></i>Вода</span><span><i class="lgd" style="background:var(--f-green)"></i>Тренировка/шаги</span></div>
   </div>
   <div class="card" id="cal-detail">${calDetail(viewDate)}</div>`;
 }
@@ -2287,9 +2330,9 @@ async function editProfile(){
         calcRes = {p, r};
         const fmtR = (n, u = '') => (Math.round(n) + ' ' + u).trim();
         $id(ov, 'pf-result').innerHTML = `<div class="tgt">
-          <div class="row2"><span>BMR</span><b>${fmtR(r.bmr)} ${eU()}</b></div>
-          <div class="row2"><span>TDEE</span><b>${fmtR(r.tdee)} ${eU()}</b></div>
-          <div class="row2"><span>Цель</span><b>${fmtR(r.kcal)} ${eU()}</b></div>
+          <div class="row2"><span>BMR</span><b>${eV(r.bmr)} ${eU()}</b></div>
+          <div class="row2"><span>TDEE</span><b>${eV(r.tdee)} ${eU()}</b></div>
+          <div class="row2"><span>Цель</span><b>${eV(r.kcal)} ${eU()}</b></div>
           <div class="row2"><span>Белки / жиры / углеводы</span><b>${fmtR(r.protein)} / ${fmtR(r.fat)} / ${fmtR(r.carb)} г</b></div>
           <div class="row2"><span>Вода</span><b>${wV(r.water)} ${wU()}</b></div>
           ${r.warnings.map(w => `<div class="warn">${esc(w)}</div>`).join('')}
@@ -2310,6 +2353,7 @@ async function editProfile(){
           db.profile.heightCm = h || null;
           db.profile.weightKg = w || null;
           db.profile.activity = act;
+          if(w > 0) db.weights[dateKey()] = w;
           if(calcRes){
             const r = calcRes.r;
             db.targets.kcal = r.kcal;
@@ -2329,40 +2373,61 @@ async function editProfile(){
 
 /* ============ ЭКСПОРТ / СБРОС ============ */
 function exportData(){
+  const name = `nutrition-backup-${dateKey()}.json`;
+  const text = JSON.stringify(DB, null, 2);
+  const done = () => { update(db => { db.profile.lastBackup = Date.now(); }); toast('Экспорт готов'); };
+  const viaLink = () => {
+    try{
+      const blob = new Blob([text], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      done();
+    }catch(e){ toast('Не удалось экспортировать'); }
+  };
+  /* iOS (в т.ч. «на экран Домой»): скачивание по ссылке ненадёжно, поэтому сначала системное меню «Поделиться» → «Сохранить в Файлы» */
   try{
-    const blob = new Blob([JSON.stringify(DB, null, 2)], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `nutrition-backup-${dateKey()}.json`;
-    document.body.appendChild(a); a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-    update(db => { db.profile.lastBackup = Date.now(); });
-    toast('Экспорт готов');
-  }catch(e){ toast('Не удалось экспортировать'); }
+    const file = new File([text], name, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:name}).then(done).catch(err => {
+        if(err && err.name === 'AbortError') return;   // пользователь закрыл меню
+        viaLink();
+      });
+      return;
+    }
+  }catch(e){}
+  viaLink();
 }
 async function importData(){
+  document.querySelectorAll('input[data-import]').forEach(x => x.remove());
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.dataset.import = '1'; inp.style.display = 'none';
+  document.body.appendChild(inp);
   inp.addEventListener('change', async () => {
-    const f = inp.files && inp.files[0]; if(!f) return;
+    const f = inp.files && inp.files[0];
+    if(!f){ inp.remove(); return; }
     try{
       const text = await f.text();
       const raw = JSON.parse(text);
       if(!isObj(raw)) throw new Error('bad');
       const d = normalize(raw);
-      DB = d; saveData();
+      if(!await confirmDialog('Заменить все текущие данные данными из файла? Это необратимо.', {title:'Импорт', ok:'Заменить'})) return;
+      DB = d; LOAD_FAILED = false; saveData();
       toast('Данные импортированы'); render(true);
     }catch(e){ toast('Некорректный файл'); }
+    finally{ inp.remove(); }
   });
   inp.click();
 }
 async function resetAll(){
   if(!await confirmDialog('Сбросить все данные? Это необратимо.', {title:'Сброс', ok:'Сбросить'})) return;
-  DB = emptyData(); saveData(); toast('Все данные сброшены'); render(true);
+  DB = emptyData(); LOAD_FAILED = false; ensureMealsSeeded(); saveData(); toast('Все данные сброшены'); render(true);
 }
 
 async function wipeAll(){
   if(!await confirmDialog('Удалить абсолютно всё, включая загруженную базу продуктов? Это необратимо.', {title:'Полная очистка', ok:'Стереть всё'})) return;
-  DB = emptyData(); saveData();
+  DB = emptyData(); LOAD_FAILED = false; ensureMealsSeeded(); saveData();
   try{ await clearFoodsDB(); }catch(e){}
   toast('Всё очищено'); render(true);
 }
@@ -2507,6 +2572,8 @@ function onbNext(){
     if(o.type !== 'maintain'){
       const tkg = num(o.targetKg);
       if(!(tkg > 0)){ toast('Введите целевой вес'); return; }
+      if(o.type === 'lose' && !(tkg < o.weight)){ toast('Для снижения веса целевой вес должен быть меньше текущего'); return; }
+      if(o.type === 'gain' && !(tkg > o.weight)){ toast('Для набора веса целевой вес должен быть больше текущего'); return; }
       if(!(o.months >= 1 && o.months <= 12)){ toast('Срок от 1 до 12 месяцев'); return; }
       o.targetKg = tkg;
     }
@@ -2617,7 +2684,7 @@ function bindScreen(){
     APP.querySelectorAll('[data-cal]').forEach(x => x.classList.toggle('sel', x === b));
   }));
   APP.querySelectorAll('[data-cal-nav]').forEach(b => b.addEventListener('click', () => {
-    calMonth.setMonth(calMonth.getMonth() + Number(b.dataset.calNav)); render(true);
+    calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + Number(b.dataset.calNav), 1); render(true);
   }));
   APP.querySelectorAll('input[data-wk]').forEach(inp => {
     inp.addEventListener('change', () => toggleWorkout(Number(inp.dataset.wk), inp.checked));
@@ -2628,6 +2695,7 @@ function bindScreen(){
       const f = dbFile.files && dbFile.files[0]; if(!f) return;
       try{ await importFoodsFile(f); }catch(e){ toast(e.message || 'Ошибка импорта'); }
       updateFoodsStatus();
+      dbFile.value = '';   // чтобы можно было выбрать тот же файл ещё раз
     });
   }
   updateFoodsStatus();
@@ -2693,7 +2761,7 @@ document.addEventListener('click', e => {
   } else if(act === 's-goal'){
     editGoal('stepsGoal');
   } else if(act === 's-save'){
-    saveSteps(); render(true);
+    if(saveSteps()) render(true);
   } else if(act === 's-reset'){
     update(db => { delete db.steps[dateKey()]; }); toast('Шаги сброшены'); render(true);
   } else if(act === 'edit-goal'){
@@ -2742,7 +2810,7 @@ document.addEventListener('click', e => {
   } else if(act === 'onb-cancel'){
     onbExit();
   } else if(act === 'open-day'){
-    viewDate = actEl.dataset.date; currentScreen = 'diary'; render();
+    viewDate = actEl.dataset.date; go('diary');
   } else if(act === 'db-import'){
     const inp = document.getElementById('db-file'); if(inp) inp.click();
   } else if(act === 'db-clear'){
@@ -2772,18 +2840,57 @@ async function quickAddFrequent(kind, id){
   const entry = {id:uid(), meal:guessMeal(now.getHours()), name:ref.name, grams:r1(grams),
     kcal:r1(kcal), p:r1(ref.per100.p*grams/100), f:r1(ref.per100.f*grams/100), c:r1(ref.per100.c*grams/100),
     time:`${pad(now.getHours())}:${pad(now.getMinutes())}`, qty, unitLabel:u ? label : ''};
-  update(db => { const k = dateKey(); const l = db.entries[k] || (db.entries[k] = []); l.push(entry); });
-  toast(`Добавлено: ${esc(ref.name)}`, { label:'Отменить', fn:() => {
-    update(db => { const k = dateKey(); db.entries[k] = (db.entries[k] || []).filter(x => x.id !== entry.id); if(!db.entries[k].length) delete db.entries[k]; });
+  const day = viewDate;
+  update(db => { const l = db.entries[day] || (db.entries[day] = []); l.push(entry); });
+  toast(`Добавлено: ${ref.name}`, { label:'Отменить', fn:() => {
+    update(db => { db.entries[day] = (db.entries[day] || []).filter(x => x.id !== entry.id); if(!db.entries[day].length) delete db.entries[day]; });
     toast('Отменено'); render(true);
   }});
   render(true);
 }
 
 /* Стартовый запуск */
+async function recoverFromMirror(){
+  if(!LS_WAS_EMPTY) return false;
+  try{
+    const raw = await IDB.get('userdata');
+    if(!raw) return false;
+    const d = JSON.parse(raw);
+    if(!isObj(d)) return false;
+    DB = normalize(d);
+    try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
+    toast('Данные восстановлены из резервной копии браузера');
+    return true;
+  }catch(e){ console.error('recover failed', e); return false; }
+}
+
+/* Синхронизация между вкладками: не затираем свежие данные устаревшей копией */
+window.addEventListener('storage', e => {
+  if(e.key !== KEY || !e.newValue || LOAD_FAILED) return;
+  try{ DB = normalize(JSON.parse(e.newValue)); render(true); }catch(err){}
+});
+
+/* Смена суток: приложение могло пролежать в фоне через полночь */
+let _lastDay = dateKey();
+function checkNewDay(){
+  const today = dateKey();
+  if(today === _lastDay) return;
+  if(viewDate === _lastDay) viewDate = today;
+  _lastDay = today;
+  calMonth = new Date();
+  render(true);
+}
+document.addEventListener('visibilitychange', () => { if(!document.hidden) checkNewDay(); });
+window.addEventListener('focus', checkNewDay);
+window.addEventListener('pageshow', checkNewDay);
+
 (async () => {
+  /* Просим браузер не вычищать хранилище автоматически */
+  try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
   try{ await loadFoodsFromIDB(); }catch(e){}
-  try{ ensureMealsSeeded(); }catch(e){}
+  try{ await recoverFromMirror(); }catch(e){}
+  try{ if(!LOAD_FAILED) ensureMealsSeeded(); }catch(e){}
+  try{ if(!LOAD_FAILED) mirrorToIDB(); }catch(e){}
   render();
 })();
 </script>
