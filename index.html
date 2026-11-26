@@ -345,6 +345,23 @@ details.how2 .kv{font-size:13px;padding:8px 0}
 .screen-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;min-height:44px}
 .screen-head .back-btn{flex:none}
 .screen-head h1{margin:0;font-size:22px;font-weight:650;letter-spacing:-.01em}
+
+/* Плитка «Статистика» с графиком */
+.stile{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--r);padding:14px 16px 10px;
+  backdrop-filter:blur(30px) saturate(150%);-webkit-backdrop-filter:blur(30px) saturate(150%);box-shadow:0 8px 32px rgba(0,0,0,.4)}
+.st-head{display:flex;align-items:center;gap:14px;width:100%;background:none;border:0;padding:0;text-align:left;color:inherit}
+.st-head .t{flex:1;font-size:16px;font-weight:550}
+.st-head .sm{color:var(--mut);font-size:12.5px}
+.st-head .chev{width:18px;height:18px;color:var(--mut)}
+.kc-wrap{margin-top:4px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.kc-plot{position:relative}
+.kc-svg{display:block;width:100%;height:auto;overflow:visible}
+.kbub{position:absolute;transform:translate(-50%,calc(-100% - 11px));background:#FF4D6D;color:#fff;font-weight:650;font-size:14px;
+  line-height:1;padding:6px 11px;border-radius:10px;pointer-events:none;white-space:nowrap}
+.kbub::after{content:"";position:absolute;left:50%;bottom:-4px;width:9px;height:9px;background:#FF4D6D;transform:translateX(-50%) rotate(45deg);border-radius:2px}
+.kl{display:grid;grid-template-columns:repeat(7,1fr);margin-top:2px}
+.kl span{text-align:center;font-size:11.5px;color:var(--mut)}
+.kl span.tod{color:var(--peach)}.kl span.sel{color:var(--tx);font-weight:600}
 </style>
 </head>
 <body>
@@ -411,7 +428,7 @@ const emptyData = () => ({
     haptics:true,
     workoutsPerWeek:3, workoutMin:90, workoutCountInGoal:false},
   goal:{type:'maintain', startKg:null, startDate:'', targetKg:null, targetDate:''},
-  targets:{kcal:2000, protein:100, fat:70, carb:250, waterGoal:2000, stepsGoal:8000, source:'manual', calcDate:''},
+  targets:{kcal:2000, protein:100, fat:70, carb:250, waterGoal:2000, stepsGoal:8000, source:'manual', calcDate:'', adjDate:''},
   weights:{},
   foods:[], entries:{}, water:{}, steps:{},
   meals:[], workouts:{}, frequentPinned:[], mealsSeeded:false
@@ -447,6 +464,7 @@ function normalize(d, fb){
   if(isObj(d.targets)){ TGT_KEYS.forEach(k => { targets[k] = nn(d.targets[k], base.targets[k]); });
     targets.source = d.targets.source === 'auto' ? 'auto' : 'manual';
     targets.calcDate = typeof d.targets.calcDate === 'string' ? d.targets.calcDate : '';
+    targets.adjDate = DATE_RE.test(d.targets.adjDate) ? d.targets.adjDate : '';
   } else {
     ['kcal','protein','fat','carb','waterGoal','stepsGoal'].forEach(k => { if(P && P[k] != null) targets[k] = nn(P[k], targets[k]); });
     targets.source = 'manual';
@@ -459,11 +477,16 @@ function normalize(d, fb){
   }
   const foods = (Array.isArray(d.foods) ? d.foods : []).filter(f => isObj(f) && typeof f.name === 'string' && f.name.trim())
     .map(f => { const q = isObj(f.per100) ? f.per100 : {};
+      const rc = isObj(f.recipe) && Array.isArray(f.recipe.items) ? {
+        items:f.recipe.items.filter(isObj).map(it => { const q2 = isObj(it.per100) ? it.per100 : {};
+          return {name:str(it.name, 100) || 'Продукт', grams:nn(it.grams), per100:{kcal:nn(q2.kcal), p:nn(q2.p), f:nn(q2.f), c:nn(q2.c)}}; }).filter(it => it.grams > 0),
+        cooked:nn(f.recipe.cooked), portions:Math.max(1, Math.round(nn(f.recipe.portions, 1)) || 1)} : null;
       const units = Array.isArray(f.units) ? f.units.filter(u => isObj(u) && u.label && Number(u.grams) > 0)
         .map(u => ({label:str(u.label,12), grams:Number(u.grams)})) : [];
       return {id:str(f.id, 40) || uid(), name:f.name.trim().slice(0, 100),
         per100:{kcal:nn(q.kcal), p:nn(q.p), f:nn(q.f), c:nn(q.c)},
-        units, defaultUnit: units.some(u => u.label === f.defaultUnit) ? f.defaultUnit : (units[0] ? units[0].label : '')};
+        units, defaultUnit: units.some(u => u.label === f.defaultUnit) ? f.defaultUnit : (units[0] ? units[0].label : ''),
+        ...(rc && rc.items.length ? {recipe:rc} : {})};
     });
   const entries = {}, water = {}, steps = {}, E = isObj(d.entries) ? d.entries : {}, W = isObj(d.water) ? d.water : {}, S = isObj(d.steps) ? d.steps : {};
   Object.keys(E).filter(k => DATE_RE.test(k) && Array.isArray(E[k])).forEach(k => {
@@ -603,14 +626,18 @@ const IDB = {
   _p: null,
   open(){
     if(this._p) return this._p;
-    this._p = new Promise((res, rej) => {
+    const pending = new Promise((res, rej) => {
       const r = indexedDB.open('nutrition-foods', 1);
       r.onupgradeneeded = () => {
         if(!r.result.objectStoreNames.contains('kv')) r.result.createObjectStore('kv');
       };
       r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
+      r.onerror = () => rej(r.error || new Error('Не удалось открыть IndexedDB'));
+      r.onblocked = () => rej(new Error('Открытие IndexedDB заблокировано другой вкладкой'));
     });
+    // Не кэшируем отклонённый Promise навсегда: после временной ошибки
+    // следующая операция сможет повторить открытие базы.
+    this._p = pending.catch(err => { this._p = null; throw err; });
     return this._p;
   },
   async get(k){
@@ -661,7 +688,7 @@ const PIECE_DICT = [
   {re:/(?:^|[^а-я])яйцо(?![а-я])/i, grams:55, label:'шт'},
   {re:/(?:^|[^а-я])булочка(?![а-я])/i, grams:80, label:'шт'},
   {re:/(?:^|[^а-я])батончик(?![а-я])/i, grams:40, label:'шт'},
-  {re:/(?:^|[^а-я])ломтик хлеба|тост/i, grams:30, label:'ломтик'},
+  {re:/(?:^|[^а-я])(?:ломтик хлеба|тост)(?![а-я])/i, grams:30, label:'ломтик'},
   {re:/(?:^|[^а-я])хлеб(?![а-я])/i, grams:30, label:'ломтик'},
   {re:/(?:^|[^а-я])стакан(?![а-я])/i, grams:250, label:'стакан'},
   {re:/(?:^|[^а-я])ложка(?![а-я])/i, grams:15, label:'ложка'},
@@ -680,11 +707,17 @@ function pieceHintFor(name, cat){
 }
 
 function mapFoods(arr){
-  return (arr || []).map(f => {
-    const name = String(f.ru || f.name || '').trim();
+  const safeNumber = value => {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  return (Array.isArray(arr) ? arr : []).map(f => {
+    // Пропускаем null, строки и другие некорректные элементы вместо падения всего импорта.
+    if(!isObj(f)) return null;
+    const name = String(f.ru || f.name || '').trim().slice(0, 100);
     if(!name) return null;
     const units = [];
-    const pieceG = Number(f.piece_g || f.pcs);
+    const pieceG = safeNumber(f.piece_g || f.pcs);
     if(pieceG > 0){
       units.push({label:String(f.unit_label || 'шт').slice(0,12), grams:pieceG});
     } else {
@@ -695,16 +728,16 @@ function mapFoods(arr){
       id: 'db_' + (f.id || uid()),
       name,
       per100: {
-        kcal: Number(f.kcal) || 0,
-        p: Number(f.p) || 0,
-        f: Number(f.f) || 0,
-        c: Number(f.c) || 0
+        kcal: safeNumber(f.kcal),
+        p: safeNumber(f.p),
+        f: safeNumber(f.f),
+        c: safeNumber(f.c)
       },
       units,
       defaultUnit: units[0] ? units[0].label : '',
-      _cat: String(f.cat || ''),
-      _syn: String(f.syn || ''),
-      _en: String(f.en || ''),
+      _cat: String(f.cat || '').slice(0, 80),
+      _syn: String(f.syn || '').slice(0, 500),
+      _en: String(f.en || '').slice(0, 200),
       _approx: !pieceG && units.length ? true : false
     };
   }).filter(Boolean);
@@ -1051,7 +1084,6 @@ function renderHome(){
   const hr = now.getHours(), greet = hr < 5 ? 'Доброй ночи' : hr < 12 ? 'Доброе утро' : hr < 18 ? 'Добрый день' : 'Добрый вечер';
   const date = now.toLocaleDateString('ru-RU', {weekday:'long', day:'numeric', month:'long'});
   const burned = t.burned;
-  const leftKcal = T.kcal + (P.workoutCountInGoal ? burned : 0) - t.kcal;
   const tile = (go, ic, name, val, value, max, color, keyId) =>
     `<button class="tile" data-go="${go}">
       ${ring({value, max, size:58, stroke:5, color, inner:icon(ic), key:keyId})}
@@ -1062,8 +1094,6 @@ function renderHome(){
     ? `<div class="info" style="margin-bottom:12px">Завершите настройку целей — <button style="background:none;border:0;color:var(--a);font-weight:600;padding:0;text-decoration:underline" data-act="onboard">начать</button></div>` : '';
   const wkCount = workoutDoneCount();
   const wkTotal = P.workoutsPerWeek || 0;
-  const burnedLine = burned > 0
-    ? `<div class="burn">${icon('fire')} ${burnLabel(t)}: +${eV(burned)} ${eU()}${P.workoutCountInGoal ? ' · учтено в норме' : ''}</div>` : '';
   return onboard + `<div class="hello"><div class="d">${date}</div><h1>${P.name ? greet + ', ' + esc(P.name) + '!' : 'Сегодня'}</h1></div>
     <div class="tiles">
       ${tile('nutrition', 'food', 'Питание', `<b>${eV(t.kcal)}</b> / ${eV(T.kcal)} ${eU()}`, t.kcal, T.kcal, 'var(--a)', 'tile-food')}
@@ -1071,10 +1101,9 @@ function renderHome(){
       ${tile('activity', 'activity', 'Активность', `<b>${n0(t.steps)}</b> / ${n0(T.stepsGoal)} шагов${wkTotal ? '<br>Тренировки: ' + wkCount + '/' + wkTotal : ''}`, t.steps, T.stepsGoal, 'var(--f-green)', 'tile-steps')}
       ${tile('diary', 'diary', 'Дневник', t.count ? `Записей: <b>${t.count}</b>` : 'Записей пока нет', t.count, Math.max(t.count, 1), 'var(--f-purple)', 'tile-diary')}
     </div>
-    ${burnedLine ? `<div class="card" style="margin-top:12px">${burnedLine}${P.workoutCountInGoal ? `<p class="muted" style="margin:8px 0 0">Осталось съесть: <b style="color:var(--tx)">${eV(Math.max(0, leftKcal))} ${eU()}</b></p>` : ''}</div>` : ''}
     <div class="rows">
       ${row('calendar', 'calendar', 'Календарь')}
-      ${row('stats', 'stats', 'Статистика')}
+      ${statsTile()}
       ${row('profile', 'user', 'Профиль')}
     </div>`;
 }
@@ -1426,18 +1455,20 @@ function foodListHTML(q, pick){
     ? `<button class="frow" data-pick="${f.id}"><div class="nm">${esc(f.name)}</div>
         <div class="sub"><span>${eV(f.per100.kcal, U('energy').dp)} ${eU()}</span>${foodSubs(f.per100).map(x => `<span>${x}</span>`).join('')}
         ${f.units && f.units.length ? `<span>${esc(f.units[0].label)} ≈ ${fmt(f.units[0].grams)} г</span>` : ''}</div></button>`
-    : swRow('food', f.id, f.name, foodSubs(f.per100).concat(f.units && f.units.length ? [`${esc(f.units[0].label)} ≈ ${fmt(f.units[0].grams)} г`] : []),
+    : swRow('food', f.id, f.name, (f.recipe ? ['Блюдо'] : []).concat(foodSubs(f.per100), f.units && f.units.length ? [`${esc(f.units[0].label)} ≈ ${fmt(f.units[0].grams)} г`] : []),
       `<div class="kc">${eV(f.per100.kcal, U('energy').dp)}<small>${eU()} / 100 г</small></div>`)).join('');
 }
 function renderFoods(){
   const add = a => button('Новый продукт', {kind:a, block:a === 'primary', ic:'plus', attrs:'data-act="new-food"'});
+  const dish = blk => button('Новое блюдо', {kind:'soft', block:blk, ic:'plus', attrs:'data-act="new-dish"'});
   if(!DB.foods.length) return screenHead('Мои продукты') + emptyState('box', 'Нет своих продуктов',
-    'Сохраните продукт с калориями и БЖУ на 100 г. При добавлении записи выберите его из списка — граммы пересчитаются сами.', add('soft'));
+    'Сохраните продукт с калориями и БЖУ на 100 г. При добавлении записи выберите его из списка — граммы пересчитаются сами. Из нескольких продуктов можно собрать блюдо.', `<div class="inl" style="flex-wrap:wrap">${add('soft')}${dish(false)}</div>`);
   return screenHead('Мои продукты') + `<label class="search">${icon('search')}<input class="input" id="food-q" placeholder="Поиск по названию" autocomplete="off"></label>
-    <div id="foodlist">${foodListHTML('', false)}</div><div style="margin-top:16px">${add('primary')}</div>`;
+    <div id="foodlist">${foodListHTML('', false)}</div><div style="margin-top:16px">${add('primary')}</div><div style="margin-top:8px">${dish(true)}</div>`;
 }
 async function editFood(id){
   const food = id ? DB.foods.find(x => x.id === id) : null;
+  if(food && food.recipe) return editRecipe(id);
   const d = food ? food.per100 : {}, sh = v => v == null ? '' : fmt(v);
   let saved = null; const ik = d.kcal == null ? '' : dec(d.kcal * U('energy').f, U('energy').dp);
   const u0 = food && food.units && food.units[0] ? food.units[0] : null;
@@ -2040,9 +2071,16 @@ function toggleWorkout(index, on){
   render(true);
 }
 
+function leftToEatHTML(){
+  const t = dayTotals(dateKey()), T = DB.targets;
+  if(!(DB.profile.workoutCountInGoal && t.burned > 0)) return '';
+  const left = Math.max(0, T.kcal + t.burned - t.kcal);
+  return `<div class="card"><p class="muted" style="margin:0">Осталось съесть: <b style="color:var(--tx)">${eV(left)} ${eU()}</b> · сожжённое учтено в норме</p></div>`;
+}
 function renderActivity(){
   const v = Number(DB.steps[dateKey()]) || 0, T = DB.targets;
   return screenHead('Активность') + card(bigRing(v, T.stepsGoal, 'шагов', 'var(--f-green)', n0, 'steps-big') + goalRow('s-goal', 'Цель на день', n0(T.stepsGoal) + ' шагов'))
+    + leftToEatHTML()
     + workoutsBlock()
     + card(`<h2 class="card-title">Шаги за сегодня</h2><div style="margin-top:12px">
       ${field('Всего шагов за день', {id:'s-val', value:v > 0 ? String(v) : '', mode:'numeric', placeholder:'Например, 6500'})}
@@ -2155,7 +2193,7 @@ function renderStats(){
   const burnedTotal = wkKeys.reduce((acc, k) => acc + (wk[k] || []).reduce((s, w) => s + (w && w.done ? w.kcal : 0), 0), 0);
 
   const statRow = (a, b) => `<div class="kv"><span>${a}</span><b>${b}</b></div>`;
-  return screenHead('Статистика') + `<div class="card">
+  return screenHead('Статистика') + weekReportCard() + weightCard() + `<div class="card">
     <div class="sth"><h2 class="card-title">Сводка</h2></div>
     ${statRow('Дней с записями', String(daysWith))}
     ${statRow('Всего записей', String(allEntries.length))}
@@ -2209,6 +2247,7 @@ function renderProfile(){
     ['Возраст', P.age ? P.age + ' лет' : '—'],
     ['Рост', P.heightCm ? P.heightCm + ' см' : '—'],
     ['Вес', P.weightKg ? fmt(P.weightKg) + ' кг' : '—'],
+    ['Целевой вес', DB.goal.targetKg ? fmt(DB.goal.targetKg) + ' кг' : '—'],
     ['Активность', activity ? activity.name : '—']
   ].map(r => `<div class="kv"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
   const toggles = `
@@ -2307,6 +2346,7 @@ async function editProfile(){
     <div class="grid3">${field('Возраст', {id:'pf-age', value:P.age || '', mode:'numeric'})}
       ${field('Рост, см', {id:'pf-h', value:P.heightCm || '', mode:'numeric'})}
       ${field('Вес, кг', {id:'pf-w', value:P.weightKg || '', mode:'decimal'})}</div>
+    ${field('Целевой вес, кг', {id:'pf-tw', value:DB.goal.targetKg ? fmt(DB.goal.targetKg) : '', mode:'decimal', placeholder:'Например, 75'})}
     <label class="field"><span>Активность</span><select class="input" id="pf-act">
       ${ACTIVITIES.map(a => `<option value="${a.v}"${Math.abs((P.activity||0)-a.v) < 0.01 ? ' selected' : ''}>${a.name}</option>`).join('')}
     </select></label>
@@ -2325,7 +2365,8 @@ async function editProfile(){
         if(!weight || !height || !age){ toast('Заполните вес, рост и возраст'); return; }
         const sex = ov.querySelector('#pf-sex button.on')?.dataset.sex || '';
         const p = {weightKg:weight, heightCm:height, age, sex, activity:act};
-        const g = DB.goal;
+        const tw0 = num($id(ov, 'pf-tw').value);
+        const g = tw0 > 0 && DB.goal.type !== 'maintain' ? {...DB.goal, targetKg:tw0} : DB.goal;
         const r = calcTargets(p, g.type === 'maintain' ? {type:'maintain', targetKg:weight, targetDate:''} : g, null);
         calcRes = {p, r};
         const fmtR = (n, u = '') => (Math.round(n) + ' ' + u).trim();
@@ -2347,7 +2388,10 @@ async function editProfile(){
         const h = num($id(ov, 'pf-h').value);
         const w = num($id(ov, 'pf-w').value);
         const act = parseFloat($id(ov, 'pf-act').value);
+        const tw = num($id(ov, 'pf-tw').value);
+        if(tw && (tw < 20 || tw > 400)){ toast('Целевой вес: от 20 до 400 кг'); return false; }
         update(db => {
+          if(tw > 0) db.goal.targetKg = tw;
           db.profile.name = name; db.profile.sex = sex;
           db.profile.age = age || null;
           db.profile.heightCm = h || null;
@@ -2369,6 +2413,294 @@ async function editProfile(){
       }}
     ]
   });
+}
+
+/* ============ ГРАФИКИ, ОТЧЁТ, ВЕС, БЛЮДА ============ */
+let kSel = 6;
+const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + dec(Math.abs(v), 2);
+const dayLbl = k => keyToDate(k).toLocaleDateString('ru-RU', {weekday:'short', day:'numeric', month:'short'});
+
+function smoothPath(pts, top, base){
+  if(pts.length < 2) return '';
+  const cl = y => Math.min(base, Math.max(top, y));
+  let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for(let i = 0; i < pts.length - 1; i++){
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1x = Math.min(p2.x, p1.x + (p2.x - p0.x) / 6), c1y = cl(p1.y + (p2.y - p0.y) / 6);
+    const c2x = Math.max(p1.x, p2.x - (p3.x - p1.x) / 6), c2y = cl(p2.y - (p3.y - p1.y) / 6);
+    d += ` C${c1x.toFixed(1)} ${c1y.toFixed(1)} ${c2x.toFixed(1)} ${c2y.toFixed(1)} ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+/* ---- график калорий за 7 дней (плитка «Статистика» на главной) ---- */
+function kcalChartInner(sel){
+  const today = dateKey(), days = Array.from({length:7}, (_, i) => shiftKey(today, i - 6));
+  const vals = days.map(k => sum(DB.entries[k] || [], e => e.kcal));
+  if(!vals.some(v => v > 0)) return '<p class="note" style="padding:22px 0 14px">Нет записей за последние 7 дней</p>';
+  const W = 320, H = 96, top = 36, base = 90, tgt = DB.targets.kcal || 0;
+  const max = Math.max(...vals, tgt, 1) * 1.08;
+  const Y = v => base - v / max * (base - top);
+  const pts = vals.map((v, i) => ({x:(i + .5) / 7 * W, y:Y(v)}));
+  const line = smoothPath(pts, top, base);
+  const area = `${line} L${pts[6].x.toFixed(1)} ${H} L${pts[0].x.toFixed(1)} ${H} Z`;
+  const s = Math.max(0, Math.min(6, sel)), sp = pts[s];
+  const st = 'fill="none" stroke="#FF2D55" stroke-linecap="round" stroke-linejoin="round"';
+  const lbl = days.map((k, i) => `<span class="${k === today ? 'tod' : ''}${i === s ? ' sel' : ''}">${keyToDate(k).toLocaleDateString('ru-RU', {weekday:'short'})}</span>`).join('');
+  return `<div class="kc-plot"><svg class="kc-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Калории за 7 дней">
+    <defs><linearGradient id="kcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF2D55" stop-opacity=".4"/><stop offset="1" stop-color="#FF2D55" stop-opacity="0"/></linearGradient></defs>
+    ${tgt > 0 ? `<line x1="0" x2="${W}" y1="${Y(tgt).toFixed(1)}" y2="${Y(tgt).toFixed(1)}" stroke="rgba(255,255,255,.2)" stroke-dasharray="3 5"/>` : ''}
+    <path d="${area}" fill="url(#kcg)"/>
+    <path d="${line}" ${st} stroke-opacity=".14" stroke-width="9"/>
+    <path d="${line}" ${st} stroke-opacity=".3" stroke-width="5"/>
+    <path d="${line}" fill="none" stroke="#FF4D6D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${sp.x.toFixed(1)}" cy="${sp.y.toFixed(1)}" r="10" fill="rgba(255,45,85,.25)"/>
+    <circle cx="${sp.x.toFixed(1)}" cy="${sp.y.toFixed(1)}" r="5.5" fill="#3a3a3c" stroke="#FF4D6D" stroke-width="2.5"/>
+  </svg><div class="kbub" style="left:${(sp.x / W * 100).toFixed(2)}%;top:${(sp.y / H * 100).toFixed(2)}%">${eV(vals[s])}</div></div>
+  <div class="kl">${lbl}</div>`;
+}
+function statsTile(){
+  return `<div class="stile">
+    <button class="st-head" data-go="stats"><span class="badge">${icon('stats')}</span><span class="t">Статистика</span><span class="sm">${eU()} · 7 дней</span>${icon('chev', 'ic chev')}</button>
+    <div class="kc-wrap" data-act="kpick">${kcalChartInner(kSel)}</div></div>`;
+}
+function kPick(e, el){
+  const r = el.getBoundingClientRect(); if(!(r.width > 0)) return;
+  kSel = Math.max(0, Math.min(6, Math.floor((e.clientX - r.left) / r.width * 7)));
+  el.innerHTML = kcalChartInner(kSel);
+}
+
+/* ---- недельный отчёт ---- */
+function weekReportCard(){
+  const today = dateKey(), tgt = DB.targets.kcal || 0, E = DB.entries;
+  const day = k => { const l = E[k] || []; return {k, n:l.length, kcal:sum(l, e => e.kcal), p:sum(l, e => e.p)}; };
+  const span = end => Array.from({length:7}, (_, i) => day(shiftKey(end, i - 6))).filter(d => d.n);
+  const yest = shiftKey(today, -1), cur = span(yest), prev = span(shiftKey(yest, -7));
+  const head = '<div class="sth"><h2 class="card-title">Недельный отчёт</h2><span class="sta"><span>7 дней до сегодня</span></span></div>';
+  if(!cur.length) return `<div class="card">${head}<p class="note">За последние 7 дней нет записей.</p></div>`;
+  const avg = sum(cur, d => d.kcal) / cur.length, avgP = sum(cur, d => d.p) / cur.length;
+  const ok = tgt > 0 ? cur.filter(d => Math.abs(d.kcal - tgt) <= tgt * 0.1).length : 0;
+  let streak = 0, k = (E[today] || []).length ? today : yest;
+  while(streak < 3650 && (E[k] || []).length){ streak++; k = shiftKey(k, -1); }
+  const sorted = tgt > 0 ? cur.slice().sort((a, b) => Math.abs(a.kcal - tgt) - Math.abs(b.kcal - tgt)) : [];
+  const best = sorted[0], worst = sorted.length > 1 ? sorted[sorted.length - 1] : null;
+  const row = (a, b) => `<div class="kv"><span>${a}</span><b>${b}</b></div>`;
+  const dayTxt = d => `${dayLbl(d.k)} · ${eV(d.kcal)} ${eU()}`;
+  let cmp = '';
+  if(prev.length){
+    const diff = Math.round(avg - sum(prev, d => d.kcal) / prev.length);
+    cmp = row('К прошлой неделе', `${diff > 0 ? '+' : diff < 0 ? '−' : ''}${eV(Math.abs(diff))} ${eU()}/день`);
+  }
+  return `<div class="card">${head}
+    ${row('Дней с записями', `${cur.length} из 7`)}
+    ${row('Средние калории', `${eV(avg)} ${eU()}${tgt ? ' / цель ' + eV(tgt) : ''}`)}
+    ${row('Средний белок', `${Math.round(avgP)} г${DB.targets.protein ? ' / ' + DB.targets.protein + ' г' : ''}`)}
+    ${tgt ? row('Дней в норме', `${ok} из ${cur.length}`) : ''}
+    ${row('Серия записей подряд', `${streak} дн.`)}
+    ${best ? row('Ближе всего к цели', dayTxt(best)) : ''}
+    ${worst ? row('Дальше всего от цели', dayTxt(worst)) : ''}
+    ${cmp}
+    <p class="lg">«В норме» — калории в пределах ±10% от цели. Сегодняшний день в отчёт не входит, пока не закончен.</p>
+  </div>`;
+}
+
+/* ---- вес: тренд, график, коррекция нормы ---- */
+const dayNum = k => Math.round(keyToDate(k).getTime() / 864e5);
+function weightTrend(){
+  const today = dateKey(), adj = DB.targets.adjDate || '';
+  let since = shiftKey(today, -28); if(adj && adj > since) since = adj;
+  const s = Object.keys(DB.weights).sort().filter(k => k >= since).map(k => ({d:dayNum(k), v:DB.weights[k]}));
+  const n = s.length, spanD = n ? s[n - 1].d - s[0].d : 0;
+  if(n < 3 || spanD < 10) return {n, span:spanD, rate:null};
+  const mx = sum(s, p => p.d) / n, my = sum(s, p => p.v) / n;
+  let sxy = 0, sxx = 0; s.forEach(p => { sxy += (p.d - mx) * (p.v - my); sxx += (p.d - mx) ** 2; });
+  return {n, span:spanD, rate:sxx ? sxy / sxx * 7 : 0};
+}
+function planRate(){
+  const G = DB.goal, P = DB.profile, W = currentWeight();
+  if(G.type === 'maintain') return 0;
+  if(!(G.targetKg > 0 && W > 0)) return null;
+  if(G.type === 'gain' ? W >= G.targetKg : W <= G.targetKg) return 'reached';
+  if(P.age && P.heightCm){
+    const r = calcTargets({weightKg:W, heightCm:P.heightCm, age:P.age, sex:P.sex, activity:P.activity}, G, null);
+    if(Math.abs(r.actualRate) > 0.001) return r.actualRate;
+  }
+  return G.type === 'gain' ? 0.25 : -0.5;
+}
+function weightAdvice(){
+  const T = DB.targets, P = DB.profile, tr = weightTrend(), plan = planRate();
+  if(plan === 'reached') return {st:'reached'};
+  if(plan == null || tr.rate == null) return {st:'collect', n:tr.n, noPlan:plan == null};
+  const err = plan - tr.rate;
+  if(Math.abs(err) <= 0.15) return {st:'ok', rate:tr.rate, plan};
+  let delta = Math.max(-250, Math.min(250, Math.round(err * 770 / 10) * 10));
+  const today = dateKey(), logged = Array.from({length:14}, (_, i) => shiftKey(today, -(i + 1))).filter(k => (DB.entries[k] || []).length);
+  if(logged.length >= 5 && T.kcal > 0){
+    const avg = sum(logged, k => sum(DB.entries[k], e => e.kcal)) / logged.length, ratio = avg / T.kcal;
+    if((delta > 0 && ratio < 0.9) || (delta < 0 && ratio > 1.1)) return {st:'adh', rate:tr.rate, plan, avg, ratio};
+  }
+  let next = T.kcal + delta; const W = currentWeight();
+  if(delta < 0){
+    let minK = P.sex === 'm' ? 1500 : P.sex === 'f' ? 1200 : 1350;
+    if(W && P.heightCm && P.age) minK = Math.max(minK, calcBMR(W, P.heightCm, P.age, P.sex).value);
+    next = Math.max(next, Math.ceil(minK / 10) * 10);
+  }
+  next = Math.min(next, 10000);
+  delta = next - T.kcal;
+  if(Math.abs(delta) < 30 || delta * err < 0) return {st:'limit', rate:tr.rate, plan};
+  return {st:'suggest', rate:tr.rate, plan, delta, next};
+}
+function applyWeightAdvice(){
+  const adv = weightAdvice();
+  if(adv.st !== 'suggest'){ render(true); return; }
+  update(db => { const t = db.targets; t.kcal = adv.next; t.carb = Math.max(10, roundTo((t.carb || 0) + adv.delta / 4, 5)); t.adjDate = dateKey(); });
+  toast('Норма: ' + eV(adv.next) + ' ' + eU()); render(true);
+}
+function weightChartHTML(){
+  const since = shiftKey(dateKey(), -90);
+  const s = Object.keys(DB.weights).sort().filter(k => k >= since).map(k => ({k, t:keyToDate(k).getTime(), v:DB.weights[k]}));
+  if(s.length < 2) return '<p class="note">Запишите вес хотя бы дважды — появятся график и тренд.</p>';
+  const tw = DB.goal.type !== 'maintain' && DB.goal.targetKg > 0 ? DB.goal.targetKg : 0;
+  let ema = s[0].v; const tr = s.map((p, i) => { if(i) ema += 0.35 * (p.v - ema); return ema; });
+  const dv = s.map(p => p.v).concat(tr), lo0 = Math.min(...dv), hi0 = Math.max(...dv), dSpan = Math.max(hi0 - lo0, 1);
+  const twIn = tw > 0 && tw >= lo0 - 2 * dSpan && tw <= hi0 + 2 * dSpan;   // далёкая цель не сплющивает график
+  const all = twIn ? dv.concat([tw]) : dv;
+  let lo = Math.min(...all), hi = Math.max(...all); const pd = Math.max((hi - lo) * 0.15, 0.4); lo -= pd; hi += pd;
+  const W = 320, H = 150, L = 8, R = 8, T = 16, B = 22, t0 = s[0].t, t1 = s[s.length - 1].t;
+  const X = t => L + (t - t0) / ((t1 - t0) || 1) * (W - L - R), Y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const line = smoothPath(s.map((p, i) => ({x:X(p.t), y:Y(tr[i])})), T, H - B);
+  const fd = k => keyToDate(k).toLocaleDateString('ru-RU', {day:'numeric', month:'short'});
+  const tx = 'font-size="10" fill="#A1A1A5"';
+  return `<svg class="wchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="График веса">
+    ${twIn ? `<line x1="${L}" x2="${W - R}" y1="${Y(tw).toFixed(1)}" y2="${Y(tw).toFixed(1)}" stroke="var(--f-green)" stroke-opacity=".7" stroke-dasharray="4 4"/>
+    <text x="${W - R}" y="${(Y(tw) - 4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--f-green)">цель ${fmt(tw)}</text>`
+      : tw > 0 ? `<text x="${W - R}" y="${tw > hi ? 11 : H - B - 4}" text-anchor="end" font-size="10" fill="var(--f-green)">цель ${fmt(tw)} ${tw > hi ? '↑' : '↓'}</text>` : ''}
+    <polyline points="${s.map(p => X(p.t).toFixed(1) + ',' + Y(p.v).toFixed(1)).join(' ')}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="1"/>
+    <path d="${line}" fill="none" stroke="var(--peach)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    ${s.map(p => `<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="2.8" fill="#fff" fill-opacity=".75"/>`).join('')}
+    <text x="${L}" y="${H - 6}" ${tx}>${fd(s[0].k)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end" ${tx}>${fd(s[s.length - 1].k)}</text>
+  </svg>
+  <div class="legend"><span>● взвешивания</span><span style="color:var(--peach)">— тренд</span>${tw ? '<span style="color:var(--f-green)">- - цель</span>' : ''}</div>`;
+}
+function weightCard(){
+  const ks = Object.keys(DB.weights).sort(), cur = ks.length ? DB.weights[ks[ks.length - 1]] : null;
+  const tr = weightTrend(), adv = weightAdvice(), T = DB.targets;
+  const rates = `Темп ${sgn(adv.rate)} кг/нед, план ${sgn(adv.plan)} кг/нед.`;
+  let a = '';
+  if(adv.st === 'collect') a = `<p class="muted" style="margin:12px 0 0">${adv.noPlan
+    ? 'Укажите целевой вес в профиле — тогда я смогу сравнивать темп с планом и предлагать коррекцию нормы.'
+    : `Для коррекции нормы нужно минимум 3 взвешивания за 10+ дней${T.adjDate ? ' после последней коррекции' : ''}. Сейчас: ${adv.n}.`}</p>`;
+  else if(adv.st === 'ok') a = `<p class="muted" style="margin:12px 0 0">${rates} Норму менять не нужно.</p>`;
+  else if(adv.st === 'reached') a = '<p class="muted" style="margin:12px 0 0">Целевой вес достигнут. Можно перейти к поддержанию веса.</p>';
+  else if(adv.st === 'limit') a = `<p class="muted" style="margin:12px 0 0">${rates} Норма уже у допустимой границы — автоматически менять её не буду.</p>`;
+  else if(adv.st === 'adh') a = `<div class="info">${rates} Но вы в среднем едите ${eV(adv.avg)} ${eU()} в день (${Math.round(adv.ratio * 100)}% нормы). Сначала приблизьтесь к норме — менять её пока не нужно.</div>`;
+  else a = `<div class="info">${rates} Предлагаю ${adv.delta > 0 ? 'добавить' : 'убавить'} ${eV(Math.abs(adv.delta))} ${eU()} в день: ${eV(T.kcal)} → ${eV(adv.next)} ${eU()}.
+    <div style="margin-top:10px">${button('Применить', {kind:'primary', attrs:'data-act="wadj-apply"'})}</div>
+    <p class="muted" style="margin:8px 0 0">Коррекция осторожная: закрывает около 70% расхождения. Углеводы подстроятся.</p></div>`;
+  return `<div class="card">
+    <div class="sth"><h2 class="card-title">Вес и тренд</h2>${cur ? `<span class="sta"><b>${fmt(cur)}</b> <span>кг</span></span>` : ''}</div>
+    ${weightChartHTML()}
+    ${tr.rate != null ? `<p class="lg">Темп за последнее время: <b style="color:var(--tx)">${sgn(tr.rate)} кг/нед</b></p>` : ''}
+    <div class="inl" style="margin-top:12px">${button('Записать вес', {kind:'soft', ic:'plus', attrs:'data-act="w-log"'})}</div>
+    ${a}
+  </div>`;
+}
+async function logWeight(){
+  const today = dateKey(), cw = currentWeight();
+  const ok = await openModal({title:'Записать вес', message:'Лучше взвешиваться утром, в одинаковых условиях.',
+    content:field('Вес, кг', {id:'w-val', value:cw ? fmt(cw) : '', mode:'decimal'}) + field('Дата', {id:'w-date', type:'date', value:today}),
+    buttons:[{text:'Отмена', kind:'ghost', value:false},
+      {text:'Удалить за дату', kind:'danger', value:false, onClick: ov => {
+        const d = $id(ov, 'w-date').value;
+        if(!DB.weights[d]){ toast('За эту дату записи нет'); return false; }
+        update(db => { delete db.weights[d]; }); toast('Запись удалена'); render(true); }},
+      {text:'Сохранить', kind:'primary', value:true, onClick: ov => {
+        const w = num($id(ov, 'w-val').value), d = $id(ov, 'w-date').value;
+        if(!(w >= 20 && w <= 400)){ toast('Введите вес от 20 до 400 кг'); return false; }
+        if(!DATE_RE.test(d) || d > today){ toast('Выберите дату не позже сегодняшней'); return false; }
+        update(db => { db.weights[d] = r1(w); const ks = Object.keys(db.weights).sort(); if(ks[ks.length - 1] === d) db.profile.weightKg = r1(w); });
+        toast('Вес записан'); }}]});
+  if(ok === true) render(true);
+}
+
+/* ---- блюда (составные продукты) ---- */
+async function editRecipe(id){
+  const food = id ? DB.foods.find(x => x.id === id) : null, R = food && food.recipe ? food.recipe : null;
+  const items = R ? R.items.map(x => ({name:x.name, grams:x.grams, per100:{...x.per100}})) : [];
+  let saved = null;
+  const totals = (ov, list = items) => {
+    const raw = sum(list, i => i.grams), k = f => sum(list, i => i.per100[f] * i.grams / 100);
+    return {raw, cooked:num($id(ov, 'r-cooked').value) || raw, portions:Math.max(1, Math.round(num($id(ov, 'r-portions').value)) || 1),
+      kcal:k('kcal'), p:k('p'), f:k('f'), c:k('c')};
+  };
+  const sumPaint = ov => {
+    const t = totals(ov), box = $id(ov, 'r-sum');
+    if(!items.length || !(t.cooked > 0)){ box.innerHTML = ''; return; }
+    const per = v => v / t.cooked * 100;
+    box.innerHTML = `<div class="tgt">
+      <div class="row2"><span>Всего</span><b>${eV(t.kcal)} ${eU()} · Б ${fmt(t.p)} · Ж ${fmt(t.f)} · У ${fmt(t.c)}</b></div>
+      <div class="row2"><span>На 100 г</span><b>${eV(per(t.kcal))} ${eU()} · Б ${fmt(per(t.p))} · Ж ${fmt(per(t.f))} · У ${fmt(per(t.c))}</b></div>
+      <div class="row2"><span>Порция ≈ ${fmt(t.cooked / t.portions)} г</span><b>${eV(t.kcal / t.portions)} ${eU()}</b></div></div>`;
+  };
+  const paint = ov => {
+    $id(ov, 'r-items').innerHTML = items.length ? items.map((it, i) => `<div class="wk-row" style="padding:8px 0">
+      <div class="r"><b>${esc(it.name)}</b><span data-rk="${i}">${eV(it.per100.kcal * it.grams / 100)} ${eU()}</span></div>
+      <input class="input" data-ri="${i}" inputmode="decimal" value="${fmt(it.grams)}" style="max-width:84px;text-align:right" aria-label="Граммы">
+      <button class="iconbtn" data-rdel="${i}" aria-label="Убрать">${icon('trash')}</button></div>`).join('')
+      : '<p class="note" style="padding:8px 0">Ингредиентов пока нет.</p>';
+    sumPaint(ov);
+  };
+  await openModal({
+    title:food ? 'Правка блюда' : 'Новое блюдо', message:'Соберите блюдо из продуктов — КБЖУ посчитается само.',
+    content:field('Название', {id:'r-name', value:food ? food.name : '', placeholder:'Например, борщ или плов'})
+      + `<div id="r-items" style="margin-top:6px"></div>
+         <div style="margin:8px 0 12px">${button('Добавить ингредиент', {kind:'soft', ic:'plus', attrs:'id="r-add"'})}</div>
+         <div class="grid2">${field('Готовый вес, г', {id:'r-cooked', value:R && R.cooked ? fmt(R.cooked) : '', mode:'decimal', placeholder:'как сумма'})}
+           ${field('Порций', {id:'r-portions', value:R ? String(R.portions) : '1', mode:'numeric'})}</div>
+         <p class="muted" style="margin:0 0 10px">Готовый вес — после варки или жарки. Если пусто, берётся сумма ингредиентов.</p><div id="r-sum"></div>`,
+    onOpen: ov => {
+      paint(ov);
+      ov.addEventListener('input', e => {
+        const t = e.target, ri = t.dataset ? t.dataset.ri : null;
+        if(ri != null){
+          const it = items[+ri];
+          if(it){ it.grams = num(t.value); const sp = ov.querySelector(`[data-rk="${ri}"]`); if(sp) sp.textContent = `${eV(it.per100.kcal * it.grams / 100)} ${eU()}`; }
+        }
+        if(ri != null || t.id === 'r-cooked' || t.id === 'r-portions') sumPaint(ov);
+      });
+      ov.addEventListener('click', async e => {
+        const d = e.target.closest('[data-rdel]');
+        if(d){ items.splice(+d.dataset.rdel, 1); paint(ov); return; }
+        if(e.target.closest('#r-add')){
+          const fid = await pickFoodAny(), f = fid ? findFoodAny(fid) : null; if(!f) return;
+          items.push({name:f.name, grams:f.units && f.units[0] ? Math.round(f.units[0].grams) : 100,
+            per100:{kcal:nn(f.per100.kcal), p:nn(f.per100.p), f:nn(f.per100.f), c:nn(f.per100.c)}});
+          paint(ov);
+        }
+      });
+    },
+    buttons:[
+      ...(food ? [{text:'Удалить', kind:'danger', value:'del', onClick: async () => {
+        if(!await confirmDialog(`Удалить блюдо «${esc(food.name)}»? Прошлые записи не изменятся.`)) return false;
+        update(db => { db.foods = db.foods.filter(x => x.id !== food.id); }); toast('Блюдо удалено'); }}] : []),
+      {text:'Отмена', kind:'ghost', value:false},
+      {text:'Сохранить', kind:'primary', value:'ok', onClick: ov => {
+        const name = $id(ov, 'r-name').value.trim();
+        if(!name){ toast('Введите название'); $id(ov, 'r-name').focus(); return false; }
+        const used = items.filter(i => i.grams > 0);
+        if(!used.length){ toast('Добавьте ингредиенты с весом'); return false; }
+        const t = totals(ov, used), per = v => r1(v / t.cooked * 100);
+        const per100 = {kcal:per(t.kcal), p:per(t.p), f:per(t.f), c:per(t.c)};
+        const units = [{label:'порция', grams:r1(t.cooked / t.portions)}];
+        const recipe = {items:used.map(i => ({name:i.name, grams:i.grams, per100:i.per100})), cooked:num($id(ov, 'r-cooked').value) || 0, portions:t.portions};
+        update(db => {
+          if(food){ const x = db.foods.find(y => y.id === food.id); if(x){ x.name = name; x.per100 = per100; x.units = units; x.defaultUnit = 'порция'; x.recipe = recipe; saved = x.id; } }
+          else { const nf = {id:uid(), name, per100, units, defaultUnit:'порция', recipe}; db.foods.push(nf); saved = nf.id; }
+        });
+        toast('Блюдо сохранено'); }}
+    ]
+  });
+  return saved;
 }
 
 /* ============ ЭКСПОРТ / СБРОС ============ */
@@ -2743,6 +3075,14 @@ document.addEventListener('click', e => {
     delEntry(actEl.dataset.id);
   } else if(act === 'new-food'){
     editFood().then(() => render(true));
+  } else if(act === 'new-dish'){
+    editRecipe().then(() => render(true));
+  } else if(act === 'w-log'){
+    logWeight();
+  } else if(act === 'wadj-apply'){
+    applyWeightAdvice();
+  } else if(act === 'kpick'){
+    kPick(e, actEl);
   } else if(act === 'edit-food'){
     editFood(actEl.dataset.id).then(() => render(true));
   } else if(act === 'del-food'){
